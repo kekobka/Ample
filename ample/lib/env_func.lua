@@ -69,7 +69,7 @@ ENV = {
 	file = function(parser, val)
 		local name, path = get_val(val)
 		local a = file.readInGame(path)
-		local r = ("="):rep(math.random(5, 15))
+		local r = string.rep("=", math.random(5, 15))
 		return "local " .. name .. " = [" .. r .. "[" .. a .. "]" .. r .. "]"
 	end,
 	includedir = function(parser, val)
@@ -102,7 +102,7 @@ ENV = {
 			a = replace(a, inc .. " " .. incl, "--")
 			_, e = a:find(inc, 0, true)
 		end
-		local r = string.rep(("="), math.random(5, 15))
+		local r = string.rep("=", math.random(5, 15))
 		table.insert(parser._env, "local " .. name .. " = loadstring([" .. r .. "[" .. a .. "]" .. r .. "])()")
 
 	end,
