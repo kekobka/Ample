@@ -9,7 +9,7 @@ require("libs/task.txt")
 
 if SERVER then
 	net.receive("code", function()
-		local side = net.readString()
+
 		net.readStream(function(code)
 			code = bit.decompress(code)
 			prop.setPropUndo(true)
@@ -48,7 +48,6 @@ end
 		end
 	end
 	net.start("code")
-	net.writeString(Parsed.side or "")
 	net.writeStream(bit.compress(code))
 	net.send()
 end
