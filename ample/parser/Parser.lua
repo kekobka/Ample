@@ -205,7 +205,6 @@ function Parser:statement()
 	::t::
 	if self:match(TOKENTYPES.RETURN) then
 		if self:match(TOKENTYPES.ENDBLOCK) then return "return;" end
-
 		return "return " .. self:statement()
 	end
 	if self:match(TOKENTYPES.BOX) then
@@ -376,6 +375,7 @@ function Parser:statement()
 		local elseblock = (self:match(TOKENTYPES.ELSE) and " else " .. self:block() or "")
 		return "if " .. st .. " then " .. block .. elseblock .. " end"
 	elseif self:match(TOKENTYPES.CONTINUE) then
+		self:match(TOKENTYPES.ENDBLOCK)
 		return "continue"
 	elseif self:match(TOKENTYPES.WHILE) then
 		return "while " .. self:expression() .. " do " .. self:block() .. " end"
