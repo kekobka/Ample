@@ -464,6 +464,7 @@ function Parser:statement()
 
 	if self:match(TOKENTYPES.AMP) or self:match(TOKENTYPES.AMPAMP) then ins(ret, " and " .. self:expression()) end
 	if self:match(TOKENTYPES.BAR) then ins(ret, " or " .. self:expression()) end
+	if self:match(TOKENTYPES.BARBAR) then ins(ret, self:getLambdaNoArgs(self:match(TOKENTYPES.ASYNC))) end
 
 	if self:match(TOKENTYPES.ENDBLOCK) then retblock = false end
 
