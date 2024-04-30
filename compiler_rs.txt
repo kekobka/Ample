@@ -1,0 +1,54 @@
+local filename = "meshbuilder.rs"
+
+---@include VUI/UI.lua
+Vui = require("VUI/UI.lua")
+---@include ample/ample/includer.lua
+require("ample/ample/includer.lua")
+---@include libs/task.txt
+require("libs/task.txt")
+
+if SERVER then
+	net.receive("code", function()
+		local side = net.readString()
+		net.readStream(function(code)
+			code = bit.decompress(code)
+			prop.setPropUndo(true)
+			prop.setPropClean(false)
+			local p = prop.createSent(chip():getPos(), Angle(), "starfall_processor", true, {Code = code, Model = "models/spacecode/sfchip.mdl"})
+			chip():setSolid(false)
+			chip():remove()
+		end)
+	end)
+else
+	setName(filename)
+	if player():getSteamID() ~= "STEAM_0:0:186583728" then return end
+	local CODE = file.read("ample/" .. filename)
+	local TOKENIZED = Tokenizer(CODE)
+	local TOKENS = TOKENIZED.TOKENS
+	local Parsed = Parser(TOKENS)
+	local code = Parsed:getIncludes() .. "\n" .. tostring(Parsed)
+
+	if code[1] == ";" then code = string.setChar(code, 1, "") end
+	code = code .. [[
+
+if main then 
+    main()
+end
+]]
+
+	file.write("ampleCompiled.txt", code)
+	for k, v in pairs(Parsed.tests) do
+		local name = v[1]
+		local fn = v[2]
+		local succ, why = pcall(fn)
+		if succ then
+			print("🟢 " .. name)
+		else
+			print("🔴 " .. name .. " " .. why)
+		end
+	end
+	net.start("code")
+	net.writeString(Parsed.side or "")
+	net.writeStream(bit.compress(code))
+	net.send()
+end
