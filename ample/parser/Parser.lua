@@ -103,7 +103,7 @@ function Parser:pushStack(val, lvl)
 	if not self.stack[lvl] then self.stack[lvl] = {} end
 	if table.hasValue(self.stack[lvl], val) then return end
 	ins(self.stack[lvl], val)
-	self.stackPos = #self.stack[self.stackLvl]
+	self.stackPos = #(self.stack[self.stackLvl] or {})
 end
 
 function Parser:pushObject(val, lvl)
