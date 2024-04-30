@@ -2,7 +2,7 @@ local function get_val(val)
 	val = val:sub(2, -2)
 	return loadstring("return " .. val)()
 end
-local inc = ("-- @include"):replace(" ", "")
+local inc = string.replace("-- @include", " ", "")
 if SERVER then
 	net.receive("setAuthor", function()
 		net.start("setAuthor")
