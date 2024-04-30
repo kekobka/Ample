@@ -21,7 +21,7 @@ if SERVER then
 	end)
 else
 	setName(filename)
-	if player():getSteamID() ~= "STEAM_0:0:186583728" then return end
+	if player() ~= owner() then return end
 	local CODE = file.read("ample/" .. filename)
 	local TOKENIZED = Tokenizer(CODE)
 	local TOKENS = TOKENIZED.TOKENS
