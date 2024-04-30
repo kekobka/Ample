@@ -4,26 +4,37 @@ local function get_val(val)
 end
 local replace = string.replace
 local inc = replace("-- @include", " ", "")
-if SERVER then
-	net.receive("setAuthor", function()
-		net.start("setAuthor")
-		net.writeString(net.readString())
-		net.send()
-	end)
-	net.receive("setName", function()
-		net.start("setName")
-		net.writeString(net.readString())
-		net.send()
-	end)
-else
-	net.receive("setAuthor", function()
-		setAuthor(net.readString())
-	end)
-	net.receive("setName", function()
-		setName(net.readString())
-	end)
-end
+
 ENV = {
+	component = function(parser, val)
+		local mode, model = get_val(val)
+		if mode == "screen" then
+			model = model or "models/hunter/plates/plate2x2.mdl"
+			return [[
+				pcall(function()
+					local Plate = prop.createComponent(chip():getPos(), Angle(90, 0, 0), "starfall_screen", ']] .. model .. [[', 1)
+					Plate:linkComponent(chip())
+					local _, min = Plate:getModelBounds()
+					Plate:setPos(chip():getPos() + Vector(0, 0, min.y))
+				end)
+			]]
+		elseif mode == "hud" then
+			model = model or "models/bull/dynamicbuttonsf.mdl"
+			return [[
+				pcall(function()
+					local Plate = prop.createComponent(chip():getPos(), Angle(0, 0, 0), "starfall_hud", ']] .. model .. [[', 1)
+					Plate:linkComponent(chip())
+					local _, min = Plate:getModelBounds()
+					Plate:setPos(chip():getPos() + Vector(0, 0, min.y))
+				end)
+			]]
+		end
+
+	end,
+	hud = function(parser, val)
+		local bool = get_val(val)
+		return "enableHud(player()," .. tostring(bool) .. ")"
+	end,
 	side = function(parser, val)
 		val = get_val(val)
 		parser.side = val
@@ -54,16 +65,10 @@ ENV = {
 	end,
 	name = function(parser, val)
 		local val = get_val(val)
-		net.start("setName")
-		net.writeString(val or "")
-		net.send()
 		return "---@name " .. val
 	end,
 	author = function(parser, val)
 		local val = get_val(val)
-		net.start("setAuthor")
-		net.writeString(val or "")
-		net.send()
 		return "---@author " .. val
 	end,
 	file = function(parser, val)
