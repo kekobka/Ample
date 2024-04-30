@@ -198,7 +198,11 @@ function Parser:statement()
 	local retblock = true
 	local isPublic, isAsync
 	::t::
+	if self:match(TOKENTYPES.RETURN) then
+		if self:match(TOKENTYPES.ENDBLOCK) then return "return;" end
 
+		return "return " .. self:statement()
+	end
 	if self:match(TOKENTYPES.BOX) then
 		local exp = self:expression()
 		if SIDES[exp] then self.side = exp end
