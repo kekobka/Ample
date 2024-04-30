@@ -148,11 +148,16 @@ function Parser:popStack(count, objs)
 	self.stackPos = self.stackPos - count
 	self.stackPosObject = self.stackPosObject - objs
 end
-
+local blacklist = {["true=true"] = true, ["false=false"] = true}
 function Parser:concatStack(start)
 	local t = {}
 	for i = start + 1, self.stackPos do
-		if self.stack[self.stackLvl] then if self.stack[self.stackLvl][i] then ins(t, "local " .. self.stack[self.stackLvl][i]) end end
+		if self.stack[self.stackLvl] then
+			if self.stack[self.stackLvl][i] then
+				local val = self.stack[self.stackLvl][i]
+				if not blacklist[val] then ins(t, "local " .. val) end
+			end
+		end
 	end
 	return concat(t, "; ")
 end
