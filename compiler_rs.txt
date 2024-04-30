@@ -1,7 +1,5 @@
 local filename = "meshbuilder.rs"
 
----@include VUI/UI.lua
-Vui = require("VUI/UI.lua")
 ---@include ample/ample/includer.lua
 require("ample/ample/includer.lua")
 ---@include libs/task.txt
