@@ -2,7 +2,8 @@ local function get_val(val)
 	val = val:sub(2, -2)
 	return loadstring("return " .. val)()
 end
-local inc = string.replace("-- @include", " ", "")
+local replace = string.replace
+local inc = replace("-- @include", " ", "")
 if SERVER then
 	net.receive("setAuthor", function()
 		net.start("setAuthor")
@@ -80,11 +81,11 @@ ENV = {
 		local name, path = get_val(val)
 		local a = file.readInGame("data/starfall/" .. path)
 		if not a then return end
-		local a = a:replace("--@name", "--")
-		local _, e = a:find(inc .. "dir", 0, true)
+		local a = replace(a, "--@name", "--")
+		local _, e = string.find(a, inc .. "dir", 0, true)
 		if e then
-			local _name = a:match("([^\n]+)", e + 2):replace("'", ""):replace('"', ""):replace('\n', ""):replace('\r', ""):replace('\t', "")
-			if _name:find("./") then _name = string.getPathFromFilename(path) .. _name:replace("./") end
+			local _name = replace(replace(replace(replace(replace(string.match(a, "([^\n]+)", e + 2), "'", ""), '"', ""), '\n', ""), '\r', ""), '\t', "")
+			if _name:find("./") then _name = string.getPathFromFilename(path) .. replace(_name, "./") end
 			ENV.includedir(parser, '("' .. "_" .. '", "' .. _name .. '")')
 			return
 		else
@@ -92,16 +93,16 @@ ENV = {
 		end
 		while e do
 
-			local _name = a:match("([^\n]+)", e + 2):replace("'", ""):replace('"', ""):replace('\n', ""):replace('\r', ""):replace('\t', "")
+			local _name = replace(replace(replace(replace(replace(string.match(a, "([^\n]+)", e + 2), "'", ""), '"', ""), '\n', ""), '\r', ""), '\t', "")
 			local incl = _name
-			if _name:find("./") then _name = string.getPathFromFilename(path) .. _name:replace("./") end
-			a = a:replace('require("' .. incl .. '")', "")
+			if _name:find("./") then _name = string.getPathFromFilename(path) .. replace(_name, "./") end
+			a = replace(a, 'require("' .. incl .. '")', "")
 
 			ENV.include(parser, '("' .. "_" .. '", "' .. _name .. '")')
-			a = a:replace(inc .. " " .. incl, "--")
+			a = replace(a, inc .. " " .. incl, "--")
 			_, e = a:find(inc, 0, true)
 		end
-		local r = ("="):rep(math.random(5, 15))
+		local r = string.rep(("="), math.random(5, 15))
 		table.insert(parser._env, "local " .. name .. " = loadstring([" .. r .. "[" .. a .. "]" .. r .. "])()")
 
 	end,
