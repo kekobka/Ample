@@ -39,6 +39,7 @@ function Parser:initialize(tokens, includes, name)
 	self.stackPos = 0
 	self.stackPosObject = 0
 	self.stackLvl = 0
+	self.typeStack = Stack()
 	self.consts = {}
 	self.structs = {}
 	self.impls = {}
@@ -129,6 +130,7 @@ function Parser:pushStackLvl()
 	self.stackPos = 0
 	self._stackPosObject = self.stackPosObject
 	self.stackPosObject = 0
+	self.typeStack:lvlUp()
 end
 
 function Parser:popStackLvl()
@@ -139,6 +141,7 @@ function Parser:popStackLvl()
 	self._stackPos = 0
 	self.stackPosObject = #(self.stackObjects and self.stackObjects[self.stackLvl] or {})
 	self._stackPosObject = 0
+	self.typeStack:lvlDown()
 end
 
 function Parser:popStack(count, objs)
@@ -249,14 +252,14 @@ function Parser:statement()
 		while self:match(TOKENTYPES.PATH) do from = from .. "/" .. self:consume(TOKENTYPES.WORD)[2] end
 		local renamed
 		if self:match(TOKENTYPES.AS) then renamed = self:consume(TOKENTYPES.WORD)[2] end
-		if self.includes[self.name] == from then return throw("cyclic import" .. " in " .. self.name) end
+		-- if self.includes[self.name] == from then return throw("cyclic import" .. " in " .. self.name) end
 
 		local toks = Tokenizer(file.read("ample/" .. from .. ".rs"))
 
-		self.includes[from] = self.name
+		-- self.includes[from] = self.name
 		local parser = Parser(toks.TOKENS, self.includes, from)
 		local code = "do --[==[ " .. from .. " ]==] " .. tostring(parser) .. " end"
-		self.includes[from] = code
+		table.insert(self.includes, code)
 
 		self:consume(TOKENTYPES.ENDBLOCK)
 		goto t
@@ -270,6 +273,7 @@ function Parser:statement()
 	if self:get(1)[1] == TOKENTYPES.WORD and self:match(TOKENTYPES.AMP) then
 		if self:get(-2)[1] == TOKENTYPES.VAR then self:pushStack(self:get(0)[2], self.stackLvl) end
 		self:pushObject(self:get(0)[2], self.stackLvl)
+		self.typeStack:remove(self:get(0)[2])
 	end
 
 	if self:match(TOKENTYPES.LBRACKET) then
@@ -299,6 +303,11 @@ function Parser:statement()
 
 	if self:match(TOKENTYPES.WORD) then
 		local word = self:get(-1)[2]
+		local typed = false
+		if self:match(TOKENTYPES.KEYKARD) then
+			local type = self:consume(TOKENTYPES.WORD)[2]
+			self.typeStack:push(word, type)
+		end
 		local cype
 		local gword = ""
 		local rword = word
@@ -319,7 +328,15 @@ function Parser:statement()
 				ins(ret, self:expression())
 				break
 			elseif self:get(0)[1] == TOKENTYPES.LBRACKET then
-				ins(ret, self:expression())
+				local v = self:expression()
+				local br = v:sub(2, 2) == ")"
+				if typed and not br then
+					v = "(" .. word .. ", " .. v:sub(2)
+				elseif typed and br then
+					v = "(" .. word .. v:sub(2)
+				end
+
+				ins(ret, v)
 				goto D
 			elseif self:get(0)[1] == TOKENTYPES.POINT then
 				self:consume(TOKENTYPES.POINT)
@@ -334,7 +351,16 @@ function Parser:statement()
 				self:consume(TOKENTYPES.CLOSETBL)
 				goto D
 			elseif self:get(0)[1] == TOKENTYPES.PATH then
-				if self:isObject(word, self.stackLvl) then replacer = ":" end
+
+				typed = self.typeStack:find(word)
+				typed = REPLACE[typed] or typed
+				if typed then
+					gword = word
+					dword = typed
+					table.remove(ret)
+				else
+					if self:isObject(word, self.stackLvl) then replacer = ":" end
+				end
 				local expr = {}
 				if self:match(TOKENTYPES.PATH) then
 					local ww = self:consume(TOKENTYPES.WORD)[2]
@@ -346,8 +372,14 @@ function Parser:statement()
 				ins(ret, gword)
 				goto D
 			end
-			if not self:isObject(word, self.stackLvl) and not self:inStack(rword, self.stackLvl) then
-				self:tryPushStack(rword .. "=" .. dword, self.stackLvl - 1)
+			if not typed then
+
+				if not self:inStack(rword, self.stackLvl) and not self:isObject(word, self.stackLvl) then
+					self:tryPushStack(rword .. "=" .. dword, self.stackLvl - 1)
+				end
+			else
+				if not self:inStack(rword, self.stackLvl) then self:tryPushStack(rword .. "=" .. dword, self.stackLvl - 1) end
+
 			end
 			break
 		end
@@ -645,30 +677,51 @@ function Parser:primary()
 	local curr = self:get(0)
 
 	local ret = {}
+	local typed
+	local typedword
 	do
 		::t::
+
 		if self:get(1)[1] == TOKENTYPES.WORD and self:match(TOKENTYPES.AMP) then
 			self:pushObject(self:get(0)[2], self.stackLvl)
 			goto t
 		end
+
 		local needToStack = true
 		local replacer = "_"
+
+		local rword = ""
 		while self:get(0)[1] == TOKENTYPES.WORD and self:get(1)[1] == TOKENTYPES.PATH do
 
 			local w = self:consume(TOKENTYPES.WORD)[2]
-			if self:isObject(w, self.stackLvl) then
-				needToStack = false
-				replacer = ":"
-			end
 
+			typed = self.typeStack:find(w)
+			typed = REPLACE[typed] or typed
+			if typed then
+				rword = w
+				w = typed
+				typedword = rword
+				-- table.remove(ret)
+			else
+				if self:isObject(w, self.stackLvl) then
+					needToStack = false
+					replacer = ":"
+				end
+			end
 			local expr = {}
 			while self:match(TOKENTYPES.PATH) do
 				local ww = self:consume(TOKENTYPES.WORD)[2]
 				w = w .. replacer .. ww
+				rword = rword .. replacer .. ww
 				ins(expr, w)
 			end
-			if needToStack then self:tryPushStack(w .. "=" .. (string.replace(w, "_", ".")), self.stackLvl - 1) end
-			ins(ret, w)
+			if not typed then
+				if needToStack then self:tryPushStack(w .. "=" .. (string.replace(w, "_", ".")), self.stackLvl - 1) end
+				ins(ret, w)
+			else
+				self:tryPushStack(rword .. "=" .. (string.replace(w, "_", ".")), self.stackLvl - 1)
+				ins(ret, rword)
+			end
 			goto skip
 		end
 		if self:get(0)[1] == TOKENTYPES.BAR then
@@ -708,13 +761,19 @@ function Parser:primary()
 			ins(ret, self:consume(TOKENTYPES.WORD)[2])
 			goto skip
 		end
+		if self:match(TOKENTYPES.KEYKARD) then
+			local type = self:consume(TOKENTYPES.WORD)[2]
+			curr = self:get(-3)
+			self.typeStack:push(self:get(-3)[2], type)
+		end
 		while self:match(TOKENTYPES.LBRACKET) do
+
 			local expr = {}
+			if typedword then ins(expr, typedword) end
 			while not self:match(TOKENTYPES.RBRACKET) do
 				ins(expr, self:expression())
 				self:match(TOKENTYPES.COMMA)
 			end
-
 			ins(ret, "(" .. concat(expr, ", ") .. ")")
 		end
 
@@ -796,6 +855,7 @@ function Parser:getLambdaNoArgs(isAsync)
 end
 function Parser:getTrait(trName)
 	local block = {}
+	self.typeStack:push("self", trName)
 	if self:match(TOKENTYPES.LT) then -- get extender
 		local extender = self:consume(TOKENTYPES.WORD)[2]
 		self:consume(TOKENTYPES.GT)
@@ -813,7 +873,7 @@ function Parser:getTrait(trName)
 
 		self:popStack(self.stackPos - count, self.stackPosObject - count)
 		self:popStackLvl()
-		return "do " .. l .. ";local _base_0={" .. tostring(setmetatable(block, blockmeta)) ..
+		return "do " .. trName .. "={};" .. l .. ";local _base_0={" .. tostring(setmetatable(block, blockmeta)) ..
 						       "};_base_0.__index = _base_0;setmetatable(_base_0, _parent_0.__base);_class_0 = setmetatable({new = _base_0.new or function() end,__base = _base_0,__name = '" ..
 						       trName ..
 						       "', __parent = _parent_0}, {__index = function(cls, name) local val = rawget(_base_0, name) if val == nil then local parent = rawget(cls, '__parent') if parent then return parent[name] end else return val end end,__call = function(cls, ...)local _self_0 = setmetatable({}, _base_0) cls.new(_self_0, ...) return _self_0 end});_base_0.__class=_class_0;" ..
@@ -831,48 +891,9 @@ function Parser:getTrait(trName)
 
 	self:popStack(self.stackPos - count, self.stackPosObject - count)
 	self:popStackLvl()
-	return "do " .. l .. " local _base_0={" .. tostring(setmetatable(block, blockmeta)) ..
+	return "do " .. trName .. "={};" .. l .. " local _base_0={" .. tostring(setmetatable(block, blockmeta)) ..
 					       "};_base_0.__index = _base_0;_class_0 = setmetatable({new = _base_0.new or function() end,__base = _base_0,__name = '" .. trName ..
 					       "'}, {__index = _base_0,__call = function(cls, ...)local _self_0 = setmetatable({}, _base_0) cls.new(_self_0, ...) return _self_0 end});_base_0.__class=_class_0;" ..
 					       trName .. "=_class_0 end"
 end
 
--- local Person
--- do
---   local _class_0
---   local _parent_0 = Human
---   local _base_0 = { }
---   _base_0.__index = _base_0
---   setmetatable(_base_0, _parent_0.__base)
---   _class_0 = setmetatable({
---     __init = function(self, ...)
---       return _class_0.__parent.__init(self, ...)
---     end,
---     __base = _base_0,
---     __name = "Person",
---     __parent = _parent_0
---   }, {
---     __index = function(cls, name)
---       local val = rawget(_base_0, name)
---       if val == nil then
---         local parent = rawget(cls, "__parent")
---         if parent then
---           return parent[name]
---         end
---       else
---         return val
---       end
---     end,
---     __call = function(cls, ...)
---       local _self_0 = setmetatable({}, _base_0)
---       cls.__init(_self_0, ...)
---       return _self_0
---     end
---   })
---   _base_0.__class = _class_0
---   if _parent_0.__inherited then
---     _parent_0.__inherited(_parent_0, _class_0)
---   end
---   Person = _class_0
---   return _class_0
--- end
