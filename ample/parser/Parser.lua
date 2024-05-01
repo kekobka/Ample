@@ -249,18 +249,28 @@ function Parser:statement()
 	end
 	if self:match(TOKENTYPES.USE) then
 		local from = self:consume(TOKENTYPES.WORD)[2]
-		while self:match(TOKENTYPES.PATH) do from = from .. "/" .. self:consume(TOKENTYPES.WORD)[2] end
-		local renamed
-		if self:match(TOKENTYPES.AS) then renamed = self:consume(TOKENTYPES.WORD)[2] end
-		-- if self.includes[self.name] == from then return throw("cyclic import" .. " in " .. self.name) end
+		while self:match(TOKENTYPES.PATH) do
+			if self:match(TOKENTYPES.STAR) then
+				local files = file.find("ample/" .. string.getPathFromFilename(self.name) .. from .. "/*")
 
+				for k, v in pairs(files) do
+
+					local toks = Tokenizer(file.read("ample/" .. string.getPathFromFilename(self.name) .. from .. "/" .. v))
+
+					local parser = Parser(toks.TOKENS, self.includes, from)
+					local code = "do --[==[ " .. from .. " ]==] " .. tostring(parser) .. " end"
+					table.insert(self.includes, code)
+
+					self:consume(TOKENTYPES.ENDBLOCK)
+				end
+				goto t
+			end
+			from = from .. "/" .. self:consume(TOKENTYPES.WORD)[2]
+		end
 		local toks = Tokenizer(file.read("ample/" .. from .. ".rs"))
-
-		-- self.includes[from] = self.name
 		local parser = Parser(toks.TOKENS, self.includes, from)
 		local code = "do --[==[ " .. from .. " ]==] " .. tostring(parser) .. " end"
 		table.insert(self.includes, code)
-
 		self:consume(TOKENTYPES.ENDBLOCK)
 		goto t
 	end
@@ -413,8 +423,9 @@ function Parser:statement()
 		return "while " .. self:expression() .. " do " .. self:block() .. " end"
 	elseif self:match(TOKENTYPES.FOR) then
 		self:match(TOKENTYPES.LBRACKET)
-		local vars = {self:consume(TOKENTYPES.WORD)[2]}
-		while self:match(TOKENTYPES.COMMA) do ins(vars, self:consume(TOKENTYPES.WORD)[2]) end
+		-- local vars = {self:consume(TOKENTYPES.WORD)[2]}
+		local vars = {self:expression()}
+		while self:match(TOKENTYPES.COMMA) do ins(vars, self:expression()) end
 		if #vars == 1 then ins(vars, 1, "_") end
 		self:match(TOKENTYPES.RBRACKET)
 		self:consume(TOKENTYPES.IN)
@@ -500,7 +511,7 @@ function Parser:statement()
 	end
 
 	if self:match(TOKENTYPES.AMP) or self:match(TOKENTYPES.AMPAMP) then ins(ret, " and " .. self:expression()) end
-	if self:match(TOKENTYPES.BAR) then ins(ret, " or " .. self:expression()) end
+	if self:get(0)[1] == TOKENTYPES.BAR then ins(ret, self:getLambda(self:match(TOKENTYPES.ASYNC))) end
 	if self:match(TOKENTYPES.BARBAR) then ins(ret, self:getLambdaNoArgs(self:match(TOKENTYPES.ASYNC))) end
 
 	if self:match(TOKENTYPES.ENDBLOCK) then retblock = false end
@@ -691,16 +702,19 @@ function Parser:primary()
 		local replacer = "_"
 
 		local rword = ""
+		local gword = ""
 		while self:get(0)[1] == TOKENTYPES.WORD and self:get(1)[1] == TOKENTYPES.PATH do
 
 			local w = self:consume(TOKENTYPES.WORD)[2]
 
 			typed = self.typeStack:find(w)
 			typed = REPLACE[typed] or typed
+			gword = w
 			if typed then
 				rword = w
 				w = typed
 				typedword = rword
+				gword = w
 				-- table.remove(ret)
 			else
 				if self:isObject(w, self.stackLvl) then
@@ -713,13 +727,14 @@ function Parser:primary()
 				local ww = self:consume(TOKENTYPES.WORD)[2]
 				w = w .. replacer .. ww
 				rword = rword .. replacer .. ww
+				gword = gword .. "." .. ww
 				ins(expr, w)
 			end
 			if not typed then
-				if needToStack then self:tryPushStack(w .. "=" .. (string.replace(w, "_", ".")), self.stackLvl - 1) end
+				if needToStack then self:tryPushStack(w .. "=" .. gword, self.stackLvl - 1) end
 				ins(ret, w)
 			else
-				self:tryPushStack(rword .. "=" .. (string.replace(w, "_", ".")), self.stackLvl - 1)
+				self:tryPushStack(rword .. "=" .. gword, self.stackLvl - 1)
 				ins(ret, rword)
 			end
 			goto skip

@@ -1,4 +1,4 @@
-local filename = "utils/linkedlist.rs"
+local filename = "autosuspension.rs"
 
 ---@include ample/ample/includer.lua
 require("ample/ample/includer.lua")
@@ -14,6 +14,7 @@ if SERVER then
 			prop.setPropClean(false)
 			local p = prop.createSent(chip():getPos(), Angle(), "starfall_processor", true, {Code = code, Model = "models/spacecode/sfchip.mdl"})
 			chip():setSolid(false)
+			if isValid(chip():isWeldedTo()) then constraint.weld(chip():isWeldedTo(), p) end
 			chip():remove()
 		end)
 	end)
@@ -23,7 +24,7 @@ else
 	local CODE = file.read("ample/" .. filename)
 	local TOKENIZED = Tokenizer(CODE)
 	local TOKENS = TOKENIZED.TOKENS
-	local Parsed = Parser(TOKENS)
+	local Parsed = Parser(TOKENS, {}, filename)
 	local code = Parsed:getIncludes() .. "\n" .. tostring(Parsed)
 
 	if code[1] == ";" then code = string.setChar(code, 1, "") end
@@ -35,12 +36,12 @@ end
 ]]
 
 	file.write("ampleCompiled.txt", code)
-	local a, why = loadstring(code)
-	if not a then
-		print(why)
-	else
-		a()
-	end
+	-- local a, why = loadstring(code)
+	-- if not a then
+	--     print(why)
+	-- else
+	--     a()
+	-- end
 	for k, v in pairs(Parsed.tests) do
 		local name = v[1]
 		local fn = v[2]

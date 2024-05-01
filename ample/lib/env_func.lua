@@ -87,6 +87,7 @@ ENV = {
 		local a = file.readInGame("data/starfall/" .. path)
 		if not a then return end
 		local a = replace(a, "--@name", "--")
+		-- local a = replace(a, "\n", ";")
 		local _, e = string.find(a, inc .. "dir", 0, true)
 		if e then
 			local _name = replace(replace(replace(replace(replace(string.match(a, "([^\n]+)", e + 2), "'", ""), '"', ""), '\n', ""), '\r', ""), '\t', "")
