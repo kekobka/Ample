@@ -13,7 +13,6 @@ if SERVER then
 			prop.setPropUndo(true)
 			prop.setPropClean(false)
 			local p = prop.createSent(chip():getPos(), Angle(), "starfall_processor", true, {Code = code, Model = "models/spacecode/sfchip.mdl"})
-			chip():setSolid(false)
 			if isValid(chip():isWeldedTo()) then constraint.weld(chip():isWeldedTo(), p) end
 			chip():remove()
 		end)
