@@ -821,6 +821,8 @@ function Parser:getFunc(isAsync, fnName)
 
 		local body = self:block(#args)
 		return fnName .. " = " .. isAsync .. "function" .. "(" .. concat(args, ", ") .. ") " .. body .. " end"
+	else
+		return fnName .. " = " .. isAsync .. "function" .. "(" .. concat(args, ", ") .. ") end"
 	end
 end
 function Parser:getFuncNoName(isAsync)
@@ -870,10 +872,8 @@ function Parser:getLambdaNoArgs(isAsync)
 end
 function Parser:getTrait(trName)
 	local block = {}
-	self.typeStack:push("self", trName)
-	if self:match(TOKENTYPES.LT) then -- get extender
+	if self:match(TOKENTYPES.KEYKARD) then -- get extender
 		local extender = self:consume(TOKENTYPES.WORD)[2]
-		self:consume(TOKENTYPES.GT)
 		self:consume(TOKENTYPES.LBR)
 		self:pushStackLvl()
 		self:pushStack("_class_0", self.stackLvl)
