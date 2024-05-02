@@ -18,7 +18,6 @@ if SERVER then
 		end)
 	end)
 else
-	setName(filename)
 	if player() ~= owner() then return end
 	local CODE = file.read("ample/" .. filename)
 	local TOKENIZED = Tokenizer(CODE)
