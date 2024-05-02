@@ -43,10 +43,11 @@ end
 
 REPLACE = {
 	["Vector"] = "getMethods('Vector')",
+	["Vec"] = "getMethods('Vector')",
 	["Angle"] = "getMethods('Angle')",
 	["Player"] = "getMethods('Player')",
 	["Hologram"] = "getMethods('Hologram')",
-	["Holo"] = "getMethods('Entity')",
+	["Holo"] = "getMethods('Hologram')",
 	["Entity"] = "getMethods('Entity')",
 	["Ent"] = "getMethods('Entity')",
 	["Table"] = "table",

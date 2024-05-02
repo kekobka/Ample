@@ -1,4 +1,4 @@
-local filename = "autosuspension.rs"
+local filename = "heli.rs"
 
 ---@include ample/ample/includer.lua
 require("ample/ample/includer.lua")
@@ -36,20 +36,20 @@ end
 	file.write("ampleCompiled.txt", code)
 	-- local a, why = loadstring(code)
 	-- if not a then
-	--     print(why)
+	-- 	print(why)
 	-- else
-	--     a()
+	-- 	a()
 	-- end
-	for k, v in pairs(Parsed.tests) do
-		local name = v[1]
-		local fn = v[2]
-		local succ, why = pcall(fn)
-		if succ then
-			print("🟢 " .. name)
-		else
-			print("🔴 " .. name .. " " .. why)
-		end
-	end
+	-- for k, v in pairs(Parsed.tests) do
+	-- 	local name = v[1]
+	-- 	local fn = v[2]
+	-- 	local succ, why = pcall(fn)
+	-- 	if succ then
+	-- 		print("🟢 " .. name)
+	-- 	else
+	-- 		print("🔴 " .. name .. " " .. why)
+	-- 	end
+	-- end
 	net.start("code")
 	net.writeStream(bit.compress(code))
 	net.send()
