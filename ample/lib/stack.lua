@@ -45,6 +45,7 @@ REPLACE = {
 	["Vector"] = "getMethods('Vector')",
 	["Vec"] = "getMethods('Vector')",
 	["Angle"] = "getMethods('Angle')",
+	["Ang"] = "getMethods('Angle')",
 	["Player"] = "getMethods('Player')",
 	["Hologram"] = "getMethods('Hologram')",
 	["Holo"] = "getMethods('Hologram')",
