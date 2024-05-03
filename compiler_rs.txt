@@ -28,9 +28,7 @@ else
 	if code[1] == ";" then code = string.setChar(code, 1, "") end
 	code = code .. [[
 
-if main then 
-    main()
-end
+if main then main() end
 ]]
 
 	file.write("ampleCompiled.txt", code)

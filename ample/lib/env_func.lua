@@ -38,7 +38,7 @@ ENV = {
 	side = function(parser, val)
 		val = get_val(val)
 		parser.side = val
-		return "---@" .. val
+		return "--[[---@" .. val .. "]]"
 	end,
 	debug = function(parser, val)
 		val = get_val(val)
@@ -61,15 +61,15 @@ ENV = {
 		table.insert(self.tests, {val, loadstring(stack .. ";" .. "(function() " .. fn .. " end)()", val)})
 	end,
 	superuser = function(self)
-		return "---@superuser"
+		return "--[[---@superuser]]"
 	end,
 	name = function(parser, val)
 		local val = get_val(val)
-		return "---@name " .. val
+		return "--[[---@name " .. val .. "]]"
 	end,
 	author = function(parser, val)
 		local val = get_val(val)
-		return "---@author " .. val
+		return "--[[---@author " .. val .. ']]'
 	end,
 	file = function(parser, val)
 		local name, path = get_val(val)

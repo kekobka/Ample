@@ -51,7 +51,7 @@ function Parser:getIncludes()
 	local compiled = {concat(self._env)}
 
 	for pointer, token in next, self.includes do ins(compiled, tostring(token)) end
-	return concat(compiled, ";\n")
+	return concat(compiled, ";")
 end
 
 function Parser:__tostring()
@@ -61,7 +61,7 @@ function Parser:__tostring()
 		local t = string.trim(tostring(token))
 		if t ~= "" then ins(compiled, t) end
 	end
-	return concat(compiled, ";\n")
+	return concat(compiled, ";")
 end
 
 function Parser:match(TokenType)
@@ -151,7 +151,7 @@ function Parser:popStack(count, objs)
 	self.stackPos = self.stackPos - count
 	self.stackPosObject = self.stackPosObject - objs
 end
-local blacklist = {["true=true"] = true, ["false=false"] = true}
+local blacklist = {["true=true"] = true, ["false=false"] = true, ["chip"] = true}
 function Parser:concatStack(start)
 	local t = {}
 	for i = start + 1, self.stackPos do
@@ -240,7 +240,7 @@ function Parser:statement()
 		if self:get(0)[1] == TOKENTYPES.LBRACKET then t = self:expression() end
 		self:consume(TOKENTYPES.CLOSETBL)
 		local env_value = ENV[env_name](self, t) or ""
-		return env_value .. "\n" .. self:statement()
+		return env_value .. " " .. self:statement()
 	end
 
 	if self:match(TOKENTYPES.VAR) or self:match(TOKENTYPES.CONST) then
