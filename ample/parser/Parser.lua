@@ -267,6 +267,11 @@ function Parser:statement()
 			end
 			from = from .. "/" .. self:consume(TOKENTYPES.WORD)[2]
 		end
+		if file.isDir("ample/" .. from) then from = from .. "/main" end
+		if not file.exists("ample/" .. from .. ".rs") and file.exists("ample/" .. string.getPathFromFilename(self.name) .. from .. ".rs") then
+
+			from = string.getPathFromFilename(self.name) .. from
+		end
 		local toks = Tokenizer(file.read("ample/" .. from .. ".rs"))
 		local parser = Parser(toks.TOKENS, self.includes, from)
 		local code = "do --[==[ " .. from .. " ]==] " .. tostring(parser) .. " end"

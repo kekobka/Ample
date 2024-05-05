@@ -40,6 +40,15 @@ ENV = {
 		parser.side = val
 		return "--[[---@" .. val .. "]]"
 	end,
+	client = function(parser)
+		return "if CLIENT then " .. parser:statement() .. " end"
+	end,
+	server = function(parser)
+		return "if SERVER then " .. parser:statement() .. " end"
+	end,
+	shared = function(parser)
+		return "if SERVER OR CLIENT then " .. parser:statement() .. " end"
+	end,
 	debug = function(parser, val)
 		val = get_val(val)
 		parser.isDebug = val

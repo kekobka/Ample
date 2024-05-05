@@ -1,4 +1,4 @@
-local filename = "heli.rs"
+local filename = "tests/ui.rs"
 
 ---@include ample/ample/includer.lua
 require("ample/ample/includer.lua")
