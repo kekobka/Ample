@@ -3,9 +3,25 @@ local function get_val(val)
 	return loadstring("return " .. val)()
 end
 local replace = string.replace
-local inc = replace("-- @include", " ", "")
+local inc = "---" .. "@include"
 
 ENV = {
+
+	Wire = {
+		Output = function(parser, val)
+			parser.wired = true
+			local val = parser:statement()
+			local t = string.explode("=", val)
+			return "if SERVER then " .. t[1] .. "=" .. t[2] .. " Wire.AddOutputs{" .. t[1] .. "=" .. t[1] .. "} Wire.InitPorts() end"
+		end,
+		Input = function(parser, val)
+			parser.wired = true
+			local val = parser:statement()
+			local t = string.explode("=", val)
+			return "if SERVER then " .. t[1] .. "=" .. t[2] .. " Wire.AddInputs{" .. t[1] .. "=type(" .. t[1] .. ")} Wire.InitPorts() end"
+		end,
+	},
+
 	component = function(parser, val)
 		local mode, model = get_val(val)
 		if mode == "screen" then
@@ -38,10 +54,13 @@ ENV = {
 	side = function(parser, val)
 		val = get_val(val)
 		parser.side = val
-		return "--[[---@" .. val .. "]]"
+		return "\n---@" .. val .. "\n"
 	end,
 	client = function(parser)
 		return "if CLIENT then " .. parser:statement() .. " end"
+	end,
+	owner = function(parser)
+		return "if CLIENT and player() == Owner then " .. parser:statement() .. " end"
 	end,
 	server = function(parser)
 		return "if SERVER then " .. parser:statement() .. " end"
@@ -56,7 +75,7 @@ ENV = {
 	compile = function(parser, val)
 		val = get_val(val)
 		if val == "full" then
-			ENV.include(parser, '("_", "libs/task.txt")')
+			-- ENV.include(parser, '("_", "libs/task.txt")')
 			-- ENV.include(parser, '("Vui", "VUI/UI.lua")') -- баги пиздец
 		end
 	end,
@@ -70,15 +89,24 @@ ENV = {
 		table.insert(self.tests, {val, loadstring(stack .. ";" .. "(function() " .. fn .. " end)()", val)})
 	end,
 	superuser = function(self)
-		return "--[[---@superuser]]"
+		return "\n---@superuser\n"
 	end,
+	notNil = function(self, val)
+		local var, msg = get_val(val)
+		return "if not " .. var .. " then return print('" .. msg .. "') end"
+	end,
+	notNULL = function(self, val)
+		local var, msg = get_val(val)
+		return "if not isValid(" .. var .. ") then return print('" .. msg .. "') end"
+	end,
+	
 	name = function(parser, val)
 		local val = get_val(val)
-		return "--[[---@name " .. val .. "]]"
+		return "\n\r---@name " .. val .. "\n"
 	end,
 	author = function(parser, val)
 		local val = get_val(val)
-		return "--[[---@author " .. val .. ']]'
+		return "\n---@author " .. val .. '\n'
 	end,
 	file = function(parser, val)
 		local name, path = get_val(val)
@@ -89,18 +117,31 @@ ENV = {
 	includedir = function(parser, val)
 		local name, path = get_val(val)
 		local files, _ = file.findInGame("data/starfall/" .. path .. "/*")
-		for k, f in ipairs(files) do ENV.include(parser, '("' .. "_" .. '", "' .. path .. "/" .. f .. '")') end
+		for k, f in ipairs(files) do
+			ENV.include(parser, '("' .. "_" .. '", "' .. path .. "/" .. f .. '")')
+		end
+	end,
+	take = function(parser, val)
+		local path = get_val(val)
+		table.insert(parser._env, "\n" .. inc .. " " .. path .. '\nrequire("' .. path .. '")')
 	end,
 	include = function(parser, val)
 		local name, path = get_val(val)
 		local a = file.readInGame("data/starfall/" .. path)
-		if not a then return end
+		if not a then
+			return
+		end
 		local a = replace(a, "--@name", "--")
+		-- local a = string.gsub(a, "%-%-[^\n]+", " ")
+		-- local a = string.gsub(a, "\n", " ")
+		-- local a = string.gsub(a, "\t", " ")
 		-- local a = replace(a, "\n", ";")
 		local _, e = string.find(a, inc .. "dir", 0, true)
 		if e then
 			local _name = replace(replace(replace(replace(replace(string.match(a, "([^\n]+)", e + 2), "'", ""), '"', ""), '\n', ""), '\r', ""), '\t', "")
-			if _name:find("./") then _name = string.getPathFromFilename(path) .. replace(_name, "./") end
+			if _name:find("./") then
+				_name = string.getPathFromFilename(path) .. replace(_name, "./")
+			end
 			ENV.includedir(parser, '("' .. "_" .. '", "' .. _name .. '")')
 			return
 		else
@@ -110,7 +151,9 @@ ENV = {
 
 			local _name = replace(replace(replace(replace(replace(string.match(a, "([^\n]+)", e + 2), "'", ""), '"', ""), '\n', ""), '\r', ""), '\t', "")
 			local incl = _name
-			if _name:find("./") then _name = string.getPathFromFilename(path) .. replace(_name, "./") end
+			if _name:find("./") then
+				_name = string.getPathFromFilename(path) .. replace(_name, "./")
+			end
 			a = replace(a, 'require("' .. incl .. '")', "")
 
 			ENV.include(parser, '("' .. "_" .. '", "' .. _name .. '")')

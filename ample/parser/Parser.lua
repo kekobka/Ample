@@ -15,7 +15,9 @@ local blockmeta = {
 		local compiled = {}
 		for _, token in next, self do
 			local t = string.trim(tostring(token))
-			if t ~= "" then ins(compiled, t) end
+			if t ~= "" then
+				ins(compiled, t)
+			end
 		end
 
 		return concat(compiled, "; ")
@@ -27,7 +29,7 @@ Parser = class("Parser")
 function Parser:initialize(tokens, includes, name)
 	self.TOKENS = tokens
 	self._env = {}
-	ENV.include(self, '("_", "libs/task.txt")')
+
 	self.tests = {}
 	self.pos = 1
 	self.length = table.count(self.TOKENS)
@@ -44,13 +46,27 @@ function Parser:initialize(tokens, includes, name)
 	self.structs = {}
 	self.impls = {}
 	self.EOF = setmetatable({TOKENTYPES.EOF}, TokenMeta)
+	self:pushObject("Chip", 0)
+	self.typeStack:push("Chip", "Entity")
+	self:pushObject("Owner", 0)
+	self.typeStack:push("Owner", "Player")
 	self.PARSED = self:parse()
 end
 
 function Parser:getIncludes()
+	if self.asynced then
+		ENV.include(self, '("_", "libs/task.txt")')
+	end
+
+	if self.wired then
+		ENV.include(self, '("Wire", "libs/wire.txt")')
+	end
+
 	local compiled = {concat(self._env)}
 
-	for pointer, token in next, self.includes do ins(compiled, tostring(token)) end
+	for pointer, token in next, self.includes do
+		ins(compiled, tostring(token))
+	end
 	return concat(compiled, ";")
 end
 
@@ -59,7 +75,9 @@ function Parser:__tostring()
 
 	for _, token in next, self.PARSED do
 		local t = string.trim(tostring(token))
-		if t ~= "" then ins(compiled, t) end
+		if t ~= "" then
+			ins(compiled, t)
+		end
 	end
 	return concat(compiled, ";")
 end
@@ -76,7 +94,9 @@ end
 function Parser:get(relpos)
 	local position = self.pos + relpos
 
-	if position > self.length then return self.EOF end
+	if position > self.length then
+		return self.EOF
+	end
 
 	return self.TOKENS[position]
 end
@@ -84,8 +104,12 @@ end
 function Parser:tryPushStack(val, lvl)
 	lvl = math.max(lvl or self.stackLvl, 1)
 	for i = lvl, 1, -1 do
-		if not self.stack[i] then self.stack[i] = {} end
-		if table.hasValue(self.stack[i], val) then return end
+		if not self.stack[i] then
+			self.stack[i] = {}
+		end
+		if table.hasValue(self.stack[i], val) then
+			return
+		end
 	end
 
 	self:pushStack(val, lvl)
@@ -93,24 +117,36 @@ end
 function Parser:inStack(val, lvl)
 	lvl = math.max(lvl or self.stackLvl, 1)
 	for i = lvl, 1, -1 do
-		if not self.stack[i] then self.stack[i] = {} end
-		if table.hasValue(self.stack[i], val) then return true end
+		if not self.stack[i] then
+			self.stack[i] = {}
+		end
+		if table.hasValue(self.stack[i], val) then
+			return true
+		end
 	end
 	return false
 end
 
 function Parser:pushStack(val, lvl)
 	lvl = math.max(lvl, 1)
-	if not self.stack[lvl] then self.stack[lvl] = {} end
-	if table.hasValue(self.stack[lvl], val) then return end
+	if not self.stack[lvl] then
+		self.stack[lvl] = {}
+	end
+	if table.hasValue(self.stack[lvl], val) then
+		return
+	end
 	ins(self.stack[lvl], val)
 	self.stackPos = #(self.stack[self.stackLvl] or {})
 end
 
 function Parser:pushObject(val, lvl)
 	lvl = math.max(lvl, 1)
-	if not self.stackObjects[lvl] then self.stackObjects[lvl] = {} end
-	if table.hasValue(self.stackObjects[lvl], val) then return end
+	if not self.stackObjects[lvl] then
+		self.stackObjects[lvl] = {}
+	end
+	if table.hasValue(self.stackObjects[lvl], val) then
+		return
+	end
 	ins(self.stackObjects[lvl], val)
 	self.stackPosObject = #self.stackObjects[lvl]
 end
@@ -118,8 +154,12 @@ end
 function Parser:isObject(val, lvl)
 	lvl = math.max(lvl or self.stackLvl, 1)
 	for i = lvl, 1, -1 do
-		if not self.stackObjects[i] then self.stackObjects[i] = {} end
-		if table.hasValue(self.stackObjects[i], val) then return true end
+		if not self.stackObjects[i] then
+			self.stackObjects[i] = {}
+		end
+		if table.hasValue(self.stackObjects[i], val) then
+			return true
+		end
 	end
 
 end
@@ -145,8 +185,16 @@ function Parser:popStackLvl()
 end
 
 function Parser:popStack(count, objs)
-	for i = 1, count, 1 do if self.stack[self.stackLvl] then table.remove(self.stack[self.stackLvl]) end end
-	for i = 1, objs, 1 do if self.stackObjects[self.stackLvl] then table.remove(self.stackObjects[self.stackLvl]) end end
+	for i = 1, count, 1 do
+		if self.stack[self.stackLvl] then
+			table.remove(self.stack[self.stackLvl])
+		end
+	end
+	for i = 1, objs, 1 do
+		if self.stackObjects[self.stackLvl] then
+			table.remove(self.stackObjects[self.stackLvl])
+		end
+	end
 
 	self.stackPos = self.stackPos - count
 	self.stackPosObject = self.stackPosObject - objs
@@ -158,7 +206,9 @@ function Parser:concatStack(start)
 		if self.stack[self.stackLvl] then
 			if self.stack[self.stackLvl][i] then
 				local val = self.stack[self.stackLvl][i]
-				if not blacklist[val] then ins(t, "local " .. val) end
+				if not blacklist[val] then
+					ins(t, "local " .. val)
+				end
 			end
 		end
 	end
@@ -168,7 +218,11 @@ end
 function Parser:getStack(start)
 	local t = {}
 	for i = start + 1, self.stackPos do
-		if self.stack[self.stackLvl] then if self.stack[self.stackLvl][i] then ins(t, self.stack[self.stackLvl][i]) end end
+		if self.stack[self.stackLvl] then
+			if self.stack[self.stackLvl][i] then
+				ins(t, self.stack[self.stackLvl][i])
+			end
+		end
 	end
 	return t
 end
@@ -176,15 +230,25 @@ function Parser:getFullStack()
 	local t = {}
 	local lvl = math.max(self.stackLvl, 1)
 	for l = lvl, 1, -1 do
-		if not self.stack[l] then goto C end
-		for i = 1, #self.stack[l] do if self.stack[l] then if self.stack[l][i] then ins(t, self.stack[l][i]) end end end
+		if not self.stack[l] then
+			goto C
+		end
+		for i = 1, #self.stack[l] do
+			if self.stack[l] then
+				if self.stack[l][i] then
+					ins(t, self.stack[l][i])
+				end
+			end
+		end
 		::C::
 	end
 	return t
 end
 function Parser:consume(type)
 	local curr = self:get(0)
-	if type ~= curr[1] then return throw("Token: " .. tostring(curr) .. " doesn't match " .. ParseToken(type) .. " in " .. self.name) end
+	if type ~= curr[1] then
+		return throw("Token: " .. tostring(curr) .. " doesn't match " .. ParseToken(type) .. " in " .. self.name)
+	end
 	self.pos = self.pos + 1
 	return curr
 end
@@ -197,7 +261,9 @@ function Parser:parse()
 		local state = self:statement(self.stack)
 		ins(block, state)
 	end
-	if count < self.stackPos then ins(block, 1, self:concatStack(count)) end
+	if count < self.stackPos then
+		ins(block, 1, self:concatStack(count))
+	end
 	return block
 end
 
@@ -207,14 +273,20 @@ function Parser:statement()
 	local isPublic, isAsync
 	::t::
 	if self:match(TOKENTYPES.RETURN) then
-		if self:match(TOKENTYPES.ENDBLOCK) then return "return;" end
+		if self:match(TOKENTYPES.ENDBLOCK) then
+			return "return;"
+		end
 		return "return " .. self:statement()
 	end
 	if self:match(TOKENTYPES.BOX) then
 		local exp = self:expression()
-		if SIDES[exp] then self.side = exp end
+		if SIDES[exp] then
+			self.side = exp
+		end
 		local additional = ""
-		if self:match(TOKENTYPES.EQ) then additional = self:expression() end
+		if self:match(TOKENTYPES.EQ) then
+			additional = self:expression()
+		end
 		self:match(TOKENTYPES.ENDBLOCK)
 		return "---@" .. exp .. " " .. additional .. "\n" .. self:statement()
 	end
@@ -223,7 +295,9 @@ function Parser:statement()
 		local name = self:consume(TOKENTYPES.STRING)[2]
 		self:consume(TOKENTYPES.FUNCTION)
 		local fnName = self:consume(TOKENTYPES.WORD)[2]
-		if not isPublic then self:pushStack(fnName, self.stackLvl) end
+		if not isPublic then
+			self:pushStack(fnName, self.stackLvl)
+		end
 		ins(ret, name)
 		ins(ret, "['")
 		ins(ret, fnName)
@@ -236,15 +310,33 @@ function Parser:statement()
 	if self:match(TOKENTYPES.PRIVATEVAR) then
 		self:consume(TOKENTYPES.OPENTBL)
 		local env_name = self:consume(TOKENTYPES.WORD)[2]
+		while self:match(TOKENTYPES.POINT) do
+			env_name = env_name .. "." .. self:consume(TOKENTYPES.WORD)[2]
+		end
 		local t
-		if self:get(0)[1] == TOKENTYPES.LBRACKET then t = self:expression() end
+		if self:get(0)[1] == TOKENTYPES.LBRACKET then
+			t = self:expression()
+		end
 		self:consume(TOKENTYPES.CLOSETBL)
-		local env_value = ENV[env_name](self, t) or ""
+		local explore = string.explode(".", env_name)
+		local env_func = ENV[table.remove(explore, 1)]
+		while #explore > 0 do
+			if not env_func then
+				return throw(env_name .. " is not a env funcion")
+			end
+			env_func = env_func[table.remove(explore, 1)]
+		end
+		if not isfunction(env_func) then
+			return throw(env_name .. " is not a env funcion")
+		end
+		local env_value = env_func(self, t) or ""
 		return env_value .. " " .. self:statement()
 	end
 
 	if self:match(TOKENTYPES.VAR) or self:match(TOKENTYPES.CONST) then
-		if self:get(0)[2] then self:pushStack(self:get(0)[2], self.stackLvl) end
+		if self:get(0)[2] then
+			self:pushStack(self:get(0)[2], self.stackLvl)
+		end
 		return self:statement()
 	end
 	if self:match(TOKENTYPES.USE) then
@@ -267,7 +359,9 @@ function Parser:statement()
 			end
 			from = from .. "/" .. self:consume(TOKENTYPES.WORD)[2]
 		end
-		if file.isDir("ample/" .. from) then from = from .. "/main" end
+		if file.isDir("ample/" .. from) then
+			from = from .. "/main"
+		end
 		if not file.exists("ample/" .. from .. ".rs") and file.exists("ample/" .. string.getPathFromFilename(self.name) .. from .. ".rs") then
 
 			from = string.getPathFromFilename(self.name) .. from
@@ -281,12 +375,16 @@ function Parser:statement()
 	end
 	if self:match(TOKENTYPES.TRAIT) then
 		local trName = self:consume(TOKENTYPES.WORD)[2]
-		if not isPublic then self:pushStack(trName .. "=" .. trName, self.stackLvl) end
+		if not isPublic then
+			self:pushStack(trName .. "=" .. trName, self.stackLvl)
+		end
 		return self:getTrait(trName)
 	end
 
 	if self:get(1)[1] == TOKENTYPES.WORD and self:match(TOKENTYPES.AMP) then
-		if self:get(-2)[1] == TOKENTYPES.VAR then self:pushStack(self:get(0)[2], self.stackLvl) end
+		if self:get(-2)[1] == TOKENTYPES.VAR then
+			self:pushStack(self:get(0)[2], self.stackLvl)
+		end
 		self:pushObject(self:get(0)[2], self.stackLvl)
 		self.typeStack:remove(self:get(0)[2])
 	end
@@ -374,7 +472,9 @@ function Parser:statement()
 					dword = typed
 					table.remove(ret)
 				else
-					if self:isObject(word, self.stackLvl) then replacer = ":" end
+					if self:isObject(word, self.stackLvl) then
+						replacer = ":"
+					end
 				end
 				local expr = {}
 				if self:match(TOKENTYPES.PATH) then
@@ -393,7 +493,9 @@ function Parser:statement()
 					self:tryPushStack(rword .. "=" .. dword, self.stackLvl - 1)
 				end
 			else
-				if not self:inStack(rword, self.stackLvl) then self:tryPushStack(rword .. "=" .. dword, self.stackLvl - 1) end
+				if not self:inStack(rword, self.stackLvl) then
+					self:tryPushStack(rword .. "=" .. dword, self.stackLvl - 1)
+				end
 
 			end
 			break
@@ -406,13 +508,16 @@ function Parser:statement()
 		end
 		if self:match(TOKENTYPES.ASYNC) then
 			isAsync = true
+			self.asynced = true
 			goto t
 		end
 
 		if self:match(TOKENTYPES.FUNCTION) then
 			retblock = false
 			local fnName = self:consume(TOKENTYPES.WORD)[2]
-			if not isPublic then self:pushStack(fnName, self.stackLvl) end
+			if not isPublic then
+				self:pushStack(fnName, self.stackLvl)
+			end
 			ins(ret, self:getFunc(isAsync, fnName))
 		end
 	end
@@ -430,8 +535,12 @@ function Parser:statement()
 		self:match(TOKENTYPES.LBRACKET)
 		-- local vars = {self:consume(TOKENTYPES.WORD)[2]}
 		local vars = {self:expression()}
-		while self:match(TOKENTYPES.COMMA) do ins(vars, self:expression()) end
-		if #vars == 1 then ins(vars, 1, "_") end
+		while self:match(TOKENTYPES.COMMA) do
+			ins(vars, self:expression())
+		end
+		if #vars == 1 then
+			ins(vars, 1, "_")
+		end
 		self:match(TOKENTYPES.RBRACKET)
 		self:consume(TOKENTYPES.IN)
 		local first = self:expression()
@@ -446,9 +555,15 @@ function Parser:statement()
 		return "for " .. vars[2] .. "=" .. first .. "," .. second .. " do " .. block .. " end"
 	end
 
-	if self:get(0)[1] == TOKENTYPES.NUMBER then ins(ret, self:consume(TOKENTYPES.NUMBER)[2]) end
-	if self:get(0)[1] == TOKENTYPES.STRING then ins(ret, '"' .. self:consume(TOKENTYPES.STRING)[2] .. '"') end
-	if self:match(TOKENTYPES.AWAIT) then ins(ret, ":await()") end
+	if self:get(0)[1] == TOKENTYPES.NUMBER then
+		ins(ret, self:consume(TOKENTYPES.NUMBER)[2])
+	end
+	if self:get(0)[1] == TOKENTYPES.STRING then
+		ins(ret, '"' .. self:consume(TOKENTYPES.STRING)[2] .. '"')
+	end
+	if self:match(TOKENTYPES.AWAIT) then
+		ins(ret, ":await()")
+	end
 	if self:match(TOKENTYPES.CONCAT) then
 		ins(ret, ".." .. self:expression())
 		goto t
@@ -515,17 +630,44 @@ function Parser:statement()
 		goto t
 	end
 
-	if self:match(TOKENTYPES.AMP) or self:match(TOKENTYPES.AMPAMP) then ins(ret, " and " .. self:expression()) end
-	if self:get(0)[1] == TOKENTYPES.BAR then ins(ret, self:getLambda(self:match(TOKENTYPES.ASYNC))) end
-	if self:match(TOKENTYPES.BARBAR) then ins(ret, self:getLambdaNoArgs(self:match(TOKENTYPES.ASYNC))) end
+	if self:match(TOKENTYPES.AMP) or self:match(TOKENTYPES.AMPAMP) then
+		ins(ret, " and " .. self:expression())
+	end
+	if self:get(0)[1] == TOKENTYPES.BAR then
+		local async = false
+		if self:match(TOKENTYPES.ASYNC) then
+			self.asynced = true
+			async = true;
+		end
+		ins(ret, self:getLambda(async))
+	end
+	if self:match(TOKENTYPES.BARBAR) then
+		local async = false
+		if self:match(TOKENTYPES.ASYNC) then
+			self.asynced = true
+			async = true;
+		end
+		ins(ret, self:getLambdaNoArgs(async))
+	end
 
-	if self:match(TOKENTYPES.ENDBLOCK) then retblock = false end
+	if self:match(TOKENTYPES.ENDBLOCK) then
+		retblock = false
+	end
+
+	if self:get(0)[1] == TOKENTYPES.LBR then
+		ins(ret, "do " .. self:block() .. " end")
+		retblock = false
+	end
 
 	if #ret == 0 then
-		if self:get(0)[1] == TOKENTYPES.EOF then return "" end
+		if self:get(0)[1] == TOKENTYPES.EOF then
+			return ""
+		end
 		return throw("Unknown statement: " .. tostring(self:get(0)) .. " in " .. self.name)
 	else
-		if retblock then ins(ret, 1, "return ") end
+		if retblock then
+			ins(ret, 1, "return ")
+		end
 
 		return concat(ret) .. (self.isDebug and "--[[ " .. self.stackLvl .. ": [" .. concat(self:getFullStack(), ", ") .. "] ]] " or "")
 	end
@@ -538,15 +680,21 @@ function Parser:block(stackOffset)
 	self:pushStackLvl()
 	local count = self.stackPos
 	local countobjs = self.stackPosObject
-	while not self:match(TOKENTYPES.RBR) and not self:match(TOKENTYPES.EOF) do ins(block, self:statement()) end
-	if count < self.stackPos then ins(block, 1, self:concatStack(count + stackOffset)) end
+	while not self:match(TOKENTYPES.RBR) and not self:match(TOKENTYPES.EOF) do
+		ins(block, self:statement())
+	end
+	if count < self.stackPos then
+		ins(block, 1, self:concatStack(count + stackOffset))
+	end
 	self:popStack(self.stackPos - count, self.stackPosObject - countobjs)
 	self:popStackLvl()
 	return tostring(setmetatable(block, blockmeta))
 end
 
 function Parser:stateOrBlock()
-	if self:get(0)[1] == TOKENTYPES.LBR then return self:block() end
+	if self:get(0)[1] == TOKENTYPES.LBR then
+		return self:block()
+	end
 
 	return self:statement()
 end
@@ -736,7 +884,9 @@ function Parser:primary()
 				ins(expr, w)
 			end
 			if not typed then
-				if needToStack then self:tryPushStack(w .. "=" .. gword, self.stackLvl - 1) end
+				if needToStack then
+					self:tryPushStack(w .. "=" .. gword, self.stackLvl - 1)
+				end
 				ins(ret, w)
 			else
 				self:tryPushStack(rword .. "=" .. gword, self.stackLvl - 1)
@@ -745,10 +895,21 @@ function Parser:primary()
 			goto skip
 		end
 		if self:get(0)[1] == TOKENTYPES.BAR then
-			return self:getLambda(self:match(TOKENTYPES.ASYNC))
+			local async = false
+			if self:match(TOKENTYPES.ASYNC) then
+				self.asynced = true
+				async = true;
+			end
+			return self:getLambda(async)
 		elseif self:match(TOKENTYPES.BARBAR) then
-			return self:getLambdaNoArgs(self:match(TOKENTYPES.ASYNC))
+			local async = false
+			if self:match(TOKENTYPES.ASYNC) then
+				self.asynced = true
+				async = true;
+			end
+			return self:getLambdaNoArgs(async)
 		elseif self:match(TOKENTYPES.ASYNC) then
+			self.asynced = true
 			return "async* " .. self:expression()
 		elseif self:match(TOKENTYPES.NUMBER) or self:match(TOKENTYPES.HEX) then
 			return curr[2]
@@ -766,7 +927,9 @@ function Parser:primary()
 					local val = expr[1]
 					local count = tonumber(self:expression())
 					expr = {}
-					for i = 1, count do ins(expr, val) end
+					for i = 1, count do
+						ins(expr, val)
+					end
 				end
 			end
 
@@ -789,7 +952,9 @@ function Parser:primary()
 		while self:match(TOKENTYPES.LBRACKET) do
 
 			local expr = {}
-			if typedword then ins(expr, typedword) end
+			if typedword then
+				ins(expr, typedword)
+			end
 			while not self:match(TOKENTYPES.RBRACKET) do
 				ins(expr, self:expression())
 				self:match(TOKENTYPES.COMMA)
@@ -806,7 +971,9 @@ function Parser:primary()
 			goto t
 		end
 
-		if #ret > 0 then return concat(ret) end
+		if #ret > 0 then
+			return concat(ret)
+		end
 	end
 	return throw("Unknown expression " .. tostring(self:get(0)) .. " in " .. self.name)
 end
@@ -852,7 +1019,9 @@ function Parser:getLambda(isAsync)
 	local args = {}
 	self.gettingLambda = true
 	while not self:match(TOKENTYPES.BAR) do
-		if self:match(TOKENTYPES.AMP) then self:pushObject(self:get(0)[2], self.stackLvl) end
+		if self:match(TOKENTYPES.AMP) then
+			self:pushObject(self:get(0)[2], self.stackLvl)
+		end
 		local e = self:expression()
 		self:pushStack(e, self.stackLvl + 1)
 		ins(args, e)
@@ -887,9 +1056,13 @@ function Parser:getTrait(trName)
 		local count = self.stackPos
 		local count = self.stackPosObject
 
-		while not self:match(TOKENTYPES.RBR) and not self:match(TOKENTYPES.EOF) do ins(block, self:statement()) end
+		while not self:match(TOKENTYPES.RBR) and not self:match(TOKENTYPES.EOF) do
+			ins(block, self:statement())
+		end
 		local l = ""
-		if count < self.stackPos then l = self:concatStack(count) end
+		if count < self.stackPos then
+			l = self:concatStack(count)
+		end
 
 		self:popStack(self.stackPos - count, self.stackPosObject - count)
 		self:popStackLvl()
@@ -905,9 +1078,13 @@ function Parser:getTrait(trName)
 	local count = self.stackPos
 	local count = self.stackPosObject
 
-	while not self:match(TOKENTYPES.RBR) and not self:match(TOKENTYPES.EOF) do ins(block, self:statement()) end
+	while not self:match(TOKENTYPES.RBR) and not self:match(TOKENTYPES.EOF) do
+		ins(block, self:statement())
+	end
 	local l = ""
-	if count < self.stackPos then l = self:concatStack(count) end
+	if count < self.stackPos then
+		l = self:concatStack(count)
+	end
 
 	self:popStack(self.stackPos - count, self.stackPosObject - count)
 	self:popStackLvl()

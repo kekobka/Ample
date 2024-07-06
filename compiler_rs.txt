@@ -1,4 +1,4 @@
-local filename = "tests/ui.rs"
+local filename = "autosuspension.rs"
 
 ---@include ample/ample/includer.lua
 require("ample/ample/includer.lua")
@@ -13,19 +13,26 @@ if SERVER then
 			prop.setPropUndo(true)
 			prop.setPropClean(false)
 			local p = prop.createSent(chip():getPos(), Angle(), "starfall_processor", true, {Code = code, Model = "models/spacecode/sfchip.mdl"})
-			if isValid(chip():isWeldedTo()) then constraint.weld(chip():isWeldedTo(), p) end
+			if isValid(chip():isWeldedTo()) then
+				constraint.weld(chip():isWeldedTo(), p)
+			end
 			chip():remove()
 		end)
 	end)
 else
-	if player() ~= owner() then return end
+	if player() ~= owner() then
+		return
+	end
 	local CODE = file.read("ample/" .. filename)
 	local TOKENIZED = Tokenizer(CODE)
 	local TOKENS = TOKENIZED.TOKENS
 	local Parsed = Parser(TOKENS, {}, filename)
-	local code = Parsed:getIncludes() .. "\n" .. tostring(Parsed)
+	local code = "file, prop, constraint, wire, Chip, Owner = file or {}, prop or {}, constraint or {}, wire or {}, chip(), owner() " .. Parsed:getIncludes() .. "\n" ..
+					             tostring(Parsed)
 
-	if code[1] == ";" then code = string.setChar(code, 1, "") end
+	if code[1] == ";" then
+		code = string.setChar(code, 1, "")
+	end
 	code = code .. [[
 
 if main then main() end
@@ -34,19 +41,19 @@ if main then main() end
 	file.write("ampleCompiled.txt", code)
 	-- local a, why = loadstring(code)
 	-- if not a then
-	-- 	print(why)
+	--     print(why)
 	-- else
-	-- 	a()
+	--     a()
 	-- end
 	-- for k, v in pairs(Parsed.tests) do
-	-- 	local name = v[1]
-	-- 	local fn = v[2]
-	-- 	local succ, why = pcall(fn)
-	-- 	if succ then
-	-- 		print("🟢 " .. name)
-	-- 	else
-	-- 		print("🔴 " .. name .. " " .. why)
-	-- 	end
+	--     local name = v[1]
+	--     local fn = v[2]
+	--     local succ, why = pcall(fn)
+	--     if succ then
+	--         print("🟢 " .. name)
+	--     else
+	--         print("🔴 " .. name .. " " .. why)
+	--     end
 	-- end
 	net.start("code")
 	net.writeStream(bit.compress(code))
