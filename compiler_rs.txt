@@ -1,4 +1,4 @@
-local filename = "autosuspension.rs"
+local filename = "autosuspension/main.rs"
 
 ---@include ample/ample/includer.lua
 require("ample/ample/includer.lua")
@@ -6,56 +6,36 @@ require("ample/ample/includer.lua")
 require("libs/task.txt")
 
 if SERVER then
-	net.receive("code", function()
+    net.receive("code", function()
 
-		net.readStream(function(code)
-			code = bit.decompress(code)
-			prop.setPropUndo(true)
-			prop.setPropClean(false)
-			local p = prop.createSent(chip():getPos(), Angle(), "starfall_processor", true, {Code = code, Model = "models/spacecode/sfchip.mdl"})
-			if isValid(chip():isWeldedTo()) then
-				constraint.weld(chip():isWeldedTo(), p)
-			end
-			chip():remove()
-		end)
-	end)
+        net.readStream(function(code)
+            code = bit.decompress(code)
+            prop.setPropUndo(true)
+            prop.setPropClean(false)
+            local p = prop.createSent(chip():getPos(), Angle(), "starfall_processor", true, {Code = code, Model = "models/spacecode/sfchip.mdl"})
+            if isValid(chip():isWeldedTo()) then
+                constraint.weld(chip():isWeldedTo(), p)
+            end
+            chip():remove()
+        end)
+    end)
 else
-	if player() ~= owner() then
-		return
-	end
-	local CODE = file.read("ample/" .. filename)
-	local TOKENIZED = Tokenizer(CODE)
-	local TOKENS = TOKENIZED.TOKENS
-	local Parsed = Parser(TOKENS, {}, filename)
-	local code = "file, prop, constraint, wire, Chip, Owner = file or {}, prop or {}, constraint or {}, wire or {}, chip(), owner() " .. Parsed:getIncludes() .. "\n" ..
-					             tostring(Parsed)
+    if player() ~= owner() then
+        return
+    end
+    local CODE = file.read("ample/" .. filename)
+    local TOKENIZED = Tokenizer(CODE)
+    local TOKENS = TOKENIZED.TOKENS
+    local Parsed = Parser(TOKENS, {}, filename)
 
-	if code[1] == ";" then
-		code = string.setChar(code, 1, "")
-	end
-	code = code .. [[
+    local code = tostring(Parsed)
 
-if main then main() end
-]]
+    if code[1] == ";" then
+        code = string.setChar(code, 1, "")
+    end
 
-	file.write("ampleCompiled.txt", code)
-	-- local a, why = loadstring(code)
-	-- if not a then
-	--     print(why)
-	-- else
-	--     a()
-	-- end
-	-- for k, v in pairs(Parsed.tests) do
-	--     local name = v[1]
-	--     local fn = v[2]
-	--     local succ, why = pcall(fn)
-	--     if succ then
-	--         print("🟢 " .. name)
-	--     else
-	--         print("🔴 " .. name .. " " .. why)
-	--     end
-	-- end
-	net.start("code")
-	net.writeStream(bit.compress(code))
-	net.send()
+    file.write("ampleCompiled.txt", code)
+    net.start("code")
+    net.writeStream(bit.compress(code))
+    net.send()
 end

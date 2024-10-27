@@ -57,16 +57,16 @@ ENV = {
 		return "\n---@" .. val .. "\n"
 	end,
 	client = function(parser)
-		return "if CLIENT then " .. parser:statement() .. " end"
+		return "if CLIENT then " .. parser:expression():eval() .. " end"
 	end,
 	owner = function(parser)
-		return "if CLIENT and player() == Owner then " .. parser:statement() .. " end"
+		return "if CLIENT and player() == Owner then " .. parser:expression():eval() .. " end"
 	end,
 	server = function(parser)
-		return "if SERVER then " .. parser:statement() .. " end"
+		return "if SERVER then " .. parser:expression():eval() .. " end"
 	end,
 	shared = function(parser)
-		return "if SERVER OR CLIENT then " .. parser:statement() .. " end"
+		return "if SERVER OR CLIENT then " .. parser:expression():eval() .. " end"
 	end,
 	debug = function(parser, val)
 		val = get_val(val)

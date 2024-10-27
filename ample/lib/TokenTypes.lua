@@ -95,4 +95,7 @@ TOKENTYPES = {
 	TRAIT = 77,
 	BOX = 78,
 	EXTERN = 79,
+	MACRO = 80,
+	MATCH = 81,
+	ENUM = 82,
 }

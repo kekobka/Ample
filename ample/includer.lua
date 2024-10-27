@@ -1,5 +1,8 @@
 ---@includedir ./lib/
 requiredir("./lib/")
 
----@includedir ./parser/
-requiredir("./parser/")
+---@include ./parser/Tokenizer.lua
+require("./parser/Tokenizer.lua")
+
+---@include ./parser/new_Parser.lua
+require("./parser/new_Parser.lua")
