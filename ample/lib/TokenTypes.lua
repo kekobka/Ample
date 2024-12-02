@@ -98,4 +98,9 @@ TOKENTYPES = {
 	MACRO = 80,
 	MATCH = 81,
 	ENUM = 82,
+	YIELD = 83,
+	MACROWORD = 84,
+
+	BAREQ = 85, -- |=
+	AMPEQ = 86, -- &=
 }

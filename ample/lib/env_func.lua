@@ -99,7 +99,7 @@ ENV = {
 		local var, msg = get_val(val)
 		return "if not isValid(" .. var .. ") then return print('" .. msg .. "') end"
 	end,
-	
+
 	name = function(parser, val)
 		local val = get_val(val)
 		return "\n\r---@name " .. val .. "\n"
@@ -165,3 +165,9 @@ ENV = {
 
 	end,
 }
+
+ENV.Owner = ENV.owner
+ENV.Client = ENV.client
+ENV.Server = ENV.server
+ENV.NotNil = ENV.NotNil
+ENV.NotNULL = ENV.notNULL

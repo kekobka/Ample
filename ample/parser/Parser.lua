@@ -27,6 +27,14 @@ local blockmeta = {
 Parser = class("Parser")
 
 function Parser:initialize(tokens, includes, name)
+	self.name = name or "main.rs"
+
+	-- file.createDir("ample_precompiled/projects")
+	-- file.createDir("ample_precompiled/projects" .. string.getPathFromFilename(name))
+	-- if file.exists("ample_precompiled/projects/" .. name) then
+	-- 	return
+	-- end
+
 	self.TOKENS = tokens
 	self._env = {}
 
@@ -34,7 +42,6 @@ function Parser:initialize(tokens, includes, name)
 	self.pos = 1
 	self.length = table.count(self.TOKENS)
 	self.includes = includes or {}
-	self.name = name or "main"
 	self.stack = {}
 	self.side = false
 	self.stackObjects = {}

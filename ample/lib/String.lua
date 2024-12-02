@@ -1,8 +1,15 @@
+function string.isLetter(c)
+	if c == "_" then
+		return true
+	elseif c >= "A" and c <= "Z" then
+		return true
+	elseif c >= "a" and c <= "z" then
+		return true
+	end
 
-function string.isLetter(s)
-    return #string.gsub(s, "[^A-Za-z_]+", "") > 0
+	return false
 end
 
 function string.isLetterOrDigit(s)
-    return (#string.gsub(s, "[^A-Za-z_]+", "") > 0) or tonumber(s)
+	return string.isLetter(s) or tonumber(s)
 end

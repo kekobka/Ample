@@ -45,10 +45,137 @@ Parser.MACRO_RULES.include_bytes = function(data, marco, parser)
 	return inc .. "KeGui/KeGui.lua"
 end
 
+Parser.MACRO_RULES.loadfile = function(data, marco, parser)
+	local a = file.readInGame(data)
+	local r = string.rep("=", math.random(5, 15))
+	marco.right = "loadstring([" .. r .. "[" .. a .. "]" .. r .. "])()"
+
+end
+
 Parser.MACRO_RULES.require = function(data, marco, parser)
 	local a = file.readInGame(data)
 	local r = string.rep("=", math.random(5, 15))
-	marco.right = "loadstring([" .. r .. "[" .. Parser.minify(a) .. "]" .. r .. "])()"
+	if not parser.dontMinify then
+		a = Parser.minify(a)
+	end
+	marco.right = "(function() " .. a .. " end)()"
+end
+Parser.MACRO_RULES.for_loop = function(data, marco, parser)
+	local data = marco.origin.right.data
+
+	marco.right = "for " .. tostring(data[1]) .. " = " .. tostring(data[2]) .. "," .. tostring(data[3]) .. ", " .. tostring(data[4]) .. " do " ..
+					              tostring(data[5].right:concat()) .. " end"
+end
+
+Parser.MACRO_RULES.notObfuscate = function(data, marco, parser)
+	parser.dontMinify = true
+	return ""
+end
+
+Parser.MACRO_RULES.min = function(data, marco, parser)
+	function marco:isNeedReturn()
+		return false
+	end
+	local data = marco.origin.right.data
+	if not data[2] then
+		marco.right = Parser.tryPreCompile(data[1])
+		return
+	end
+	local a = Parser.tryPreCompile(data[1])
+	local b = Parser.tryPreCompile(data[2])
+
+	try(function()
+		local p1 = loadstring("return " .. a)
+		local p2 = loadstring("return " .. b)
+
+		a = p1 and p1() or a
+		b = p2 and p2() or b
+	end)
+
+	local ret = "((" .. a .. ") < (" .. b .. ") and (" .. a .. ") or (" .. b .. "))"
+	try(function()
+		local p3 = loadstring("return " .. ret)
+		ret = p3 and p3() or ret
+	end)
+
+	marco.right = ret
+end
+
+Parser.MACRO_RULES.max = function(data, marco, parser)
+	function marco:isNeedReturn()
+		return false
+	end
+
+	local data = marco.origin.right.data
+
+	if not data[2] then
+		marco.right = Parser.tryPreCompile(data[1])
+		return
+	end
+
+	local a = Parser.tryPreCompile(data[1])
+	local b = Parser.tryPreCompile(data[2])
+	local ret = Parser.tryPreCompile("((" .. a .. ") > (" .. b .. ") and (" .. a .. ") or (" .. b .. "))")
+
+	marco.right = ret
+end
+
+Parser.MACRO_RULES.abs = function(data, marco, parser)
+	function marco:isNeedReturn()
+		return false
+	end
+
+	local data = marco.origin.right.data
+	local a = Parser.tryPreCompile(data[1])
+	local ret = Parser.tryPreCompile("((" .. a .. " <= 0) and (-" .. a .. ") or (" .. a .. "))")
+
+	marco.right = ret
+end
+Parser.MACRO_RULES.Compile = function(data, marco, parser)
+
+	local data = marco.origin
+	local a = tostring(data)
+	local ret = data
+	try(function()
+		local p1 = loadstring("return " .. a)
+		a = p1 and p1() or a
+	end)
+
+	marco.right = ret
+end
+
+Parser.MACRO_RULES.args = function(data, marco, parser)
+	marco.right = "..."
+end
+
+Parser.MACRO_RULES.component = function(data, marco, parser)
+
+	local data = marco.origin.right.data
+	local mode = tostring(data[1]):sub(2, -2)
+	local model = data[2] and tostring(data[2]):sub(2, -2)
+
+	if mode == "screen" then
+		model = model or "models/hunter/plates/plate2x2.mdl"
+		return [[
+			pcall(function()
+				local Plate = prop.createComponent(chip():getPos(), Angle(90, 0, 0), "starfall_screen", ']] .. model .. [[', true)
+				Plate:linkComponent(chip())
+				local _, min = Plate:getModelBounds()
+				Plate:setPos(chip():getPos() + Vector(0, 0, min.y))
+			end)
+		]]
+	elseif mode == "hud" then
+		model = model or "models/bull/dynamicbuttonsf.mdl"
+		return [[
+			pcall(function()
+				local Plate = prop.createComponent(chip():getPos(), Angle(0, 0, 0), "starfall_hud", ']] .. model .. [[', true)
+				Plate:linkComponent(chip())
+				local _, min = Plate:getModelBounds()
+				Plate:setPos(chip():getPos() + Vector(0, 0, min.y))
+			end)
+		]]
+	end
+
 end
 
 local MACRO = Parser.expressions.MACRO
@@ -57,11 +184,58 @@ function MACRO:initialize(parser, macro, expr)
 	if not Parser.MACRO_RULES[macro] then
 		return throw(macro .. " is not a macro")
 	end
-	table.insert(parser.MACROS, Parser.MACRO_RULES[macro](string.sub(tostring(expr), 2, -2), self, parser))
+	-- parser:match(TOKENTYPES.LBRACKET)
+
+	if parser:get(1)[1] == TOKENTYPES.RBRACKET then
+		parser:match(TOKENTYPES.LBRACKET)
+		parser:match(TOKENTYPES.RBRACKET)
+		self.origin = ""
+	else
+		self.origin = parser:expression()
+	end
+	table.insert(parser.MACROS, Parser.MACRO_RULES[macro](string.sub(tostring(self.origin), 3, -3), self, parser))
 end
 
 function MACRO:eval()
 	return tostring(self.right)
+end
+---@include statement.lua
+require("statement.lua")
+Parser.expressions.MACROWORD = class("Ample.expressions.MACROWORD", Parser.expressions.BLOCK)
+local MACROWORD = Parser.expressions.MACROWORD
+function MACROWORD:initialize(left, right)
+	self.left = left
+
+	self.right = tostring(right.data[#right.data])
+
+	Parser.MACRO_RULES[tostring(self.left)] = function(data, macro, parser)
+		local ret = self.right
+
+		for i, arg in pairs(right.args) do
+			local data = tostring(macro.origin.right.data[i])
+			ret = string.replace(ret, tostring(arg), data)
+		end
+
+		macro.right = Parser.tryPreCompile(ret)
+	end
+end
+
+function MACROWORD:concat(s)
+	local tbl = {}
+	for k, v in ipairs(s) do
+		local str = tostring(v)
+		if str ~= "" then
+			tbl[#tbl + 1] = str
+		end
+	end
+	return table.concat(tbl, ",")
+end
+function MACROWORD:isNeedReturn()
+	return false
+end
+
+function MACROWORD:eval()
+	return ""
 end
 
 Parser.expressions.ATTRIBUTE = class("Ample.expressions.ATTRIBUTE", Parser.baseExpression)
@@ -69,8 +243,18 @@ Parser.ATTRIBUTES.notNULL = function(data, ATTRIBUTE)
 	local data = data.right.data -- pizda
 	local val = tostring(data[1])
 	local msg = data[2] and tostring(data[2])
-	local msg = msg and "print(" .. msg .. ")" or ""
-	return "if not isValid(" .. val .. ") then " .. msg .. " return false end"
+	local ret = data[3] and tostring(data[3])
+
+	local msg = msg and #msg > 2 and "print(" .. msg .. ")" or ""
+	local ret = ret and ret or "false"
+	return "if not isValid(" .. val .. ") then " .. msg .. " return " .. ret .. " end"
+end
+
+Parser.ATTRIBUTES.NotNULL = Parser.ATTRIBUTES.notNULL
+
+Parser.ATTRIBUTES.NotObfuscate = function(data, ATTRIBUTE, parser)
+	parser.dontMinify = true
+	return ""
 end
 
 Parser.ATTRIBUTES.notNil = function(data, ATTRIBUTE)
@@ -80,45 +264,46 @@ Parser.ATTRIBUTES.notNil = function(data, ATTRIBUTE)
 	local msg = msg and "print(" .. msg .. ")" or ""
 	return "if not " .. val .. " then " .. msg .. " return false end"
 end
+Parser.ATTRIBUTES.NotNil = Parser.ATTRIBUTES.notNil
 
 Parser.ATTRIBUTES.owner = function(data, ATTRIBUTE, parser)
-	local block = Parser.expressions.BLOCK()
-
-	parser:consume(TOKENTYPES.LBR)
-	while not parser:match(TOKENTYPES.RBR) and not parser:match(TOKENTYPES.EOF) do
-		table.insert(block.data, Parser.expressions.EXPRESSION(parser:logicalOr()))
-	end
+	local block = parser:expression()
 
 	function ATTRIBUTE:eval()
+		if block.right.class == Parser.expressions.BLOCKFN then
+			block = block.right:concat()
+		end
+
 		return "if CLIENT and player() == owner() then " .. tostring(block) .. " end"
 	end
 end
+Parser.ATTRIBUTES.Owner = Parser.ATTRIBUTES.owner
 
 Parser.ATTRIBUTES.server = function(data, ATTRIBUTE, parser)
-	local block = Parser.expressions.BLOCK()
 
-	parser:consume(TOKENTYPES.LBR)
-	while not parser:match(TOKENTYPES.RBR) and not parser:match(TOKENTYPES.EOF) do
-		table.insert(block.data, Parser.expressions.EXPRESSION(parser:logicalOr()))
-	end
-
+	local block = parser:expression()
 	function ATTRIBUTE:eval()
+		if block.right.class == Parser.expressions.BLOCKFN then
+			block = block.right:concat()
+		end
+
 		return "if SERVER then " .. tostring(block) .. " end"
 	end
 end
+Parser.ATTRIBUTES.Server = Parser.ATTRIBUTES.server
 
 Parser.ATTRIBUTES.client = function(data, ATTRIBUTE, parser)
-	local block = Parser.expressions.BLOCK()
-
-	parser:consume(TOKENTYPES.LBR)
-	while not parser:match(TOKENTYPES.RBR) and not parser:match(TOKENTYPES.EOF) do
-		table.insert(block.data, Parser.expressions.EXPRESSION(parser:logicalOr()))
-	end
+	local block = parser:expression()
 
 	function ATTRIBUTE:eval()
+		if block.right.class == Parser.expressions.BLOCKFN then
+			block = block.right:concat()
+		end
+
 		return "if CLIENT then " .. tostring(block) .. " end"
 	end
 end
+Parser.ATTRIBUTES.Client = Parser.ATTRIBUTES.client
 
 Parser.ATTRIBUTES.data = function(data, ATTRIBUTE, parser)
 	local block = Parser.expressions.EXPRESSION(parser:logicalOr())
@@ -131,6 +316,8 @@ Parser.ATTRIBUTES.data = function(data, ATTRIBUTE, parser)
 	end
 	return variable;
 end
+
+Parser.ATTRIBUTES.Data = Parser.ATTRIBUTES.data
 
 Parser.ATTRIBUTES.getter = function(data, ATTRIBUTE, parser)
 	local block = Parser.expressions.EXPRESSION(parser:logicalOr())
@@ -156,15 +343,25 @@ Parser.ATTRIBUTES.setter = function(data, ATTRIBUTE, parser)
 end
 
 Parser.ATTRIBUTES.notowner = function(data, ATTRIBUTE, parser)
-	local block = Parser.expressions.BLOCK()
-
-	parser:consume(TOKENTYPES.LBR)
-	while not parser:match(TOKENTYPES.RBR) and not parser:match(TOKENTYPES.EOF) do
-		table.insert(block.data, Parser.expressions.EXPRESSION(parser:logicalOr()))
-	end
+	local block = parser:expression()
 
 	function ATTRIBUTE:eval()
+
+		if block.right.class == Parser.expressions.BLOCKFN then
+			block = block.right:concat()
+		end
+
 		return "if CLIENT and player() ~= owner() then " .. tostring(block) .. " end"
+	end
+end
+Parser.ATTRIBUTES.NotOwner = Parser.ATTRIBUTES.notowner
+
+Parser.ATTRIBUTES.NotObfuscate = function(data, ATTRIBUTE, parser)
+
+	local expr = parser:expression()
+	function ATTRIBUTE:eval()
+
+		return "--[[DON_MINIFY_THIS]]" .. tostring(expr)
 	end
 end
 
@@ -190,6 +387,45 @@ Parser.ATTRIBUTES.Inspector = function(data, ATTRIBUTE, parser)
 						       ".__class.new = function(...) new(...) InspectorNew(...) end end" .. ";Inspector['" .. className .. "']={ " .. Inspector .. "}"
 	end
 	return block
+end
+
+Parser.ATTRIBUTES.c = function(data, ATTRIBUTE, parser)
+	local block = parser:expression()
+	function ATTRIBUTE:eval()
+		return "#" .. tostring(block)
+	end
+end
+
+Parser.ATTRIBUTES.Compile = function(data, ATTRIBUTE, parser)
+
+	local expr = parser:expression()
+	function ATTRIBUTE:eval()
+
+		if expr.right.class == Parser.expressions.FUNCTION then
+			local data = expr.right.right.data
+			for k, v in pairs(data) do
+
+				local block = tostring(v)
+				try(function()
+					local p1 = loadstring("return " .. block)
+					block = p1 and p1() or block
+				end)
+				data[k] = Parser.expressions.EXPRESSION(block)
+			end
+		elseif expr.right.class == Parser.expressions.BLOCKFN then
+			expr = expr.right:concat()
+			expr = "(function() " .. tostring(expr) .. " end)()"
+		end
+
+		local block = tostring(expr)
+
+		try(function()
+			local p1 = loadstring("return " .. block)
+			block = p1 and p1() or block
+		end)
+		return block
+	end
+	return expr
 end
 
 local ATTRIBUTE = Parser.expressions.ATTRIBUTE
@@ -228,7 +464,7 @@ function USE:initialize(parser)
 
 			for k, v in pairs(files) do
 
-				local toks = Tokenizer(file.read("ample/" .. root .. "/" .. v))
+				local toks = Tokenizer(file.read("ample/" .. root .. "/" .. v), "ample/" .. root .. "/" .. v)
 
 				local from = root .. "/" .. v
 
@@ -251,11 +487,12 @@ function USE:initialize(parser)
 		from = from .. "/" .. parser:consume(TOKENTYPES.WORD)[2]
 	end
 
-	if not file.exists("ample/" .. from .. ".rs") and file.exists("ample/" .. string.getPathFromFilename(parser.name) .. from .. ".rs") then
+	local withRoot = "ample/" .. string.getPathFromFilename(parser.name) .. from
+	if not file.exists("ample/" .. from .. ".rs") and (file.exists(withRoot .. ".rs") or file.exists(withRoot)) then
 		from = string.getPathFromFilename(parser.name) .. from
 	end
 
-	if file.isDir("ample/" .. from) then
+	if file.isDir and file.isDir("ample/" .. from) then
 		from = from .. "/main"
 	end
 
@@ -264,7 +501,7 @@ function USE:initialize(parser)
 		return
 	end
 
-	local toks = Tokenizer(file.read("ample/" .. from))
+	local toks = Tokenizer(file.read("ample/" .. from), "ample/" .. from)
 	local parser = Parser(toks.TOKENS, parser.includes, from, true)
 	parser.dontMinify = true
 	parser.includes[from] = true

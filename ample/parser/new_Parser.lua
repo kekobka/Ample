@@ -25,6 +25,15 @@ end
 Parser = class("Parser")
 Parser.static.expressions = {}
 Parser.static.baseExpression = class("Ample.expressionBASE")
+function Parser.static.tryPreCompile(val)
+	local ret = tostring(val)
+	try(function()
+		local p3 = loadstring("return " .. ret)
+		ret = p3 and p3() or ret
+	end)
+
+	return tostring(ret)
+end
 
 function Parser.baseExpression:eval()
 	return ""
@@ -83,6 +92,7 @@ function Parser.baseExpression:isNeedReturn()
 			[Parser.expressions.USE] = true,
 			[Parser.expressions.PUB] = true,
 			[Parser.expressions.ENUM] = true,
+			[Parser.expressions.MACROWORD] = true,
 		}
 	end
 	if Parser.noneedreturn[self:toRightEnd(false).class] then
@@ -105,6 +115,7 @@ end
 Parser.static.preprocessed = {}
 Parser.static.MACRO_RULES = {}
 Parser.static.ATTRIBUTES = {}
+Parser.static.NotObfuscates = {}
 local EXPRESSIONS = Parser.expressions
 ---@includedir ./expressions/
 requiredir("./expressions/")
@@ -122,7 +133,6 @@ function Parser:initialize(tokens, includes, name, included)
 
 	self.PARSED = self:parse()
 
-	-- printTable(self:buildTree())
 end
 
 function Parser:buildTree()
@@ -183,14 +193,16 @@ function Parser:__tostring()
 	local tbl = {}
 
 	if not self.included then
+
 		for k, v in pairs(Parser.preprocessed) do
 			table_insert(self.MACROS, v)
 		end
 		table_insert(self.MACROS, "---@" .. self.side)
+		-- table_insert(self.MACROS, 'if setAuthor and CLIENT then setAuthor((chip():getChipAuthor() or "") .. "\\n[ Ample by kekobka]") end ')
 		if Parser.asynced then
 			local data = file.read("ample_precompiled/libs/task.txt")
 			if not data then
-				data = Parser.minify(file.readInGame("data/starfall/libs/task.txt"))
+				data = Parser.minify(file.readInGame("data/starfall/libs/task.txt"), true)
 				file.createDir("ample_precompiled/libs/")
 				file.write("ample_precompiled/libs/task.txt", data)
 			end
@@ -204,7 +216,7 @@ function Parser:__tostring()
 	-- local extends = self.included and "" or
 	-- 				                "file, prop, constraint, wire, Chip, Owner = file or {}, prop or {}, constraint or {}, wire or {}, chip(), owner() \n"
 	local data = tostring(self.PARSED)
-	if not self.dontMinify then
+	if not self.dontMinify or self.forceMinify then
 		local ok, min = pcall(Parser.minify, data)
 		if ok then
 			data = min
@@ -403,6 +415,12 @@ function Parser:assignment()
 		elseif self:match(TOKENTYPES.FLEXEQ) then
 			expr = EXPRESSIONS.ASSIGNMENTFLEXEQ(expr, self:unary())
 			goto CONTINUE
+		elseif self:match(TOKENTYPES.BAREQ) then
+			expr = EXPRESSIONS.ASSIGNMENTBAREQ(expr, self:expression())
+			goto CONTINUE
+		elseif self:match(TOKENTYPES.AMPEQ) then
+			expr = EXPRESSIONS.ASSIGNMENTAMPEQ(expr, self:expression())
+			goto CONTINUE
 		elseif self:match(TOKENTYPES.PATH) then
 			expr = EXPRESSIONS.PATH(expr, self:unary())
 			goto CONTINUE
@@ -461,10 +479,9 @@ local primary_solver = {
 	end,
 	[TOKENTYPES.MACRO] = function(self, curr)
 		local macro = self:consume(TOKENTYPES.MACRO)[2]
-		self:consume(TOKENTYPES.LBRACKET)
 
-		local expr = EXPRESSIONS.MACRO(self, macro, self:match(TOKENTYPES.RBRACKET) and "" or self:expression())
-		self:match(TOKENTYPES.RBRACKET)
+		local expr = EXPRESSIONS.MACRO(self, macro)
+
 		return expr
 	end,
 }
@@ -568,10 +585,8 @@ function Parser:primary()
 		local expr = EXPRESSIONS.EXPRESSION_NO_BRACKET()
 		if exited and #data > 0 then
 			expr = EXPRESSIONS.EXPRESSIONBRACKET()
-			expr.data = data
 		end
 		expr.data = data
-
 		return expr
 	elseif self:match(TOKENTYPES.LBR) then
 		local expr = EXPRESSIONS.BLOCKFN()
@@ -634,8 +649,24 @@ function Parser:primary()
 	end
 
 	if self:match(TOKENTYPES.TRAIT) then
-		local trName = self:consume(TOKENTYPES.WORD)[2]
-		return EXPRESSIONS.TRAIT(self, trName)
+		local name = self:consume(TOKENTYPES.WORD)[2]
+		return EXPRESSIONS.TRAIT(self, name)
+	end
+
+	if self:match(TOKENTYPES.MACROWORD) then
+		local name = self:consume(TOKENTYPES.WORD)[2]
+		local expr = EXPRESSIONS.BLOCKFN()
+		self:consume(TOKENTYPES.LBRACKET)
+		while not self:match(TOKENTYPES.RBRACKET) and not self:match(TOKENTYPES.EOF) do
+			table_insert(expr.args, self:expression())
+			self:match(TOKENTYPES.COMMA)
+		end
+
+		self:consume(TOKENTYPES.LBR)
+		while not self:match(TOKENTYPES.RBR) and not self:match(TOKENTYPES.EOF) do
+			table_insert(expr.data, self:expression())
+		end
+		return EXPRESSIONS.MACROWORD(name, expr)
 	end
 
 	if self:match(TOKENTYPES.MATCH) then
@@ -708,7 +739,7 @@ function Parser:primary()
 	end
 
 	if self:match(TOKENTYPES.OPENTBL) then
-		local expr = EXPRESSIONS.EXPRESSION_NO_BRACKET()
+		local expr = EXPRESSIONS.TABLEINIT()
 		while not self:match(TOKENTYPES.CLOSETBL) and not self:match(TOKENTYPES.EOF) do
 			table_insert(expr.data, EXPRESSIONS.EXPRESSION(self:logicalOr()))
 			self:match(TOKENTYPES.COMMA)
@@ -737,6 +768,9 @@ function Parser:primary()
 		end
 
 		return EXPRESSIONS.ASYNC(self:expression())
+	end
+	if self:match(TOKENTYPES.YIELD) then
+		return EXPRESSIONS.YIELD()
 	end
 
 	if self:match(TOKENTYPES.USE) then

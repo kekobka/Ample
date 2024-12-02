@@ -4,8 +4,15 @@ local OPERATOR_CHARS = OPERATOR_CHARS
 local TOKENTYPES = TOKENTYPES
 local TOKENTYPESSTRING = TOKENTYPESSTRING
 
-function Tokenizer:initialize(code)
+function Tokenizer:initialize(code, filename)
+
+	--- TODO 
+	-- hash input code and write file with name hash and compiled code
+	if not code then
+		notification.addLegacy(filename, NOTIFY.ERROR, 2)
+	end
 	local code = code .. "\n"
+	self.filename = filename
 	self.code = code
 	self.Ln = 1
 	self.Col = 1
@@ -59,7 +66,10 @@ function Tokenizer:tokenize(what)
 		end
 	end
 end
-
+function Tokenizer:tokenizeNext(pos)
+	pos = pos or 1
+	self:tokenize(self.pos + pos)
+end
 function Tokenizer:peek(relpos)
 	local position = self.pos + relpos
 	if position > self.length then
@@ -84,6 +94,14 @@ function Tokenizer:addToken(type, text)
 	table.insert(self.TOKENS, setmetatable({type, text, self.Ln, self.Col}, TokenMeta))
 end
 
+function Tokenizer:popToken()
+	return table.remove(self.TOKENS)
+end
+
+function Tokenizer:getToken()
+	return self.TOKENS[#self.TOKENS]
+end
+
 function Tokenizer:tokenizeNumber()
 	local buff = ""
 	local point
@@ -103,7 +121,7 @@ function Tokenizer:tokenizeNumber()
 			curr = self:next()
 		end
 
-		return self:addToken(TOKENTYPES.HEX, "0x" .. buff)
+		return self:addToken(TOKENTYPES.NUMBER, "0x" .. buff)
 	end
 	while curr and curr ~= "" do
 		if curr == "." then
@@ -200,6 +218,8 @@ function Tokenizer:tokenizeWord()
 		return self:addToken(TOKENTYPES.ASYNC)
 	elseif buff == "await" then
 		return self:addToken(TOKENTYPES.AWAIT)
+	elseif buff == "yield" then
+		return self:addToken(TOKENTYPES.YIELD)
 	elseif buff == "continue" then
 		return self:addToken(TOKENTYPES.CONTINUE)
 	elseif buff == "import" then
@@ -226,14 +246,11 @@ function Tokenizer:tokenizeWord()
 		return self:addToken(TOKENTYPES.WORD, "_parent_0")
 	elseif buff == "extern" then
 		return self:addToken(TOKENTYPES.EXTERN)
-	-- elseif buff == "match" then
-		-- return self:addToken(TOKENTYPES.MATCH)
 
+	elseif buff == "macro" then
+		return self:addToken(TOKENTYPES.MACROWORD)
 	elseif buff == "enum" then
 		return self:addToken(TOKENTYPES.ENUM)
-
-		-- elseif Classnames[buff] then
-		--     return self:addToken(TOKENTYPES.CLASSSTATE, buff)
 	end
 
 	self:addToken(TOKENTYPES.WORD, buff)

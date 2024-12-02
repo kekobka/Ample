@@ -38,6 +38,7 @@ function EXPRESSION_NO_BRACKET:eval()
 		return ""
 	end
 	local tbl = {}
+
 	for k, v in ipairs(self.data) do
 		local str = tostring(v)
 		if str ~= "" then
@@ -46,6 +47,27 @@ function EXPRESSION_NO_BRACKET:eval()
 	end
 	return table.concat(tbl, ",")
 end
+
+Parser.expressions.TABLEINIT = class("Ample.expressions.TABLEINIT", Parser.baseExpression)
+local TABLEINIT = Parser.expressions.TABLEINIT
+function TABLEINIT:initialize(left, right)
+	self.data = {}
+end
+
+function TABLEINIT:eval()
+	if #self.data == 0 then
+		return ""
+	end
+	local tbl = {}
+	for k, v in ipairs(self.data) do
+		local str = tostring(v)
+		if str ~= "" then
+			tbl[#tbl + 1] = str
+		end
+	end
+	return "{" .. table.concat(tbl, ",") .. "}"
+end
+
 Parser.expressions.WORDFN = class("Ample.expressions.WORDFN", Parser.baseExpression)
 local WORDFN = Parser.expressions.WORDFN
 function WORDFN:initialize(left, right)
@@ -187,6 +209,7 @@ end
 Parser.expressions.ASYNCFUNCTION = class("Ample.expressions.ASYNCFUNCTION", BLOCK)
 local ASYNCFUNCTION = Parser.expressions.ASYNCFUNCTION
 function ASYNCFUNCTION:initialize(left, right)
+	Parser.asynced = true
 	self.left = left
 	self.right = right
 end

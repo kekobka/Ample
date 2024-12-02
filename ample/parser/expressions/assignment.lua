@@ -36,7 +36,6 @@ function ASSIGNMENTMINUSEQ:eval()
 	return a .. " = " .. a .. " - " .. tostring(self.right)
 end
 
-
 Parser.expressions.ASSIGNMENTSLASHEQ = class("Ample.expressions.ASSIGNMENTSLASHEQ", ASSIGNMENTPLUSEQ)
 local ASSIGNMENTSLASHEQ = Parser.expressions.ASSIGNMENTSLASHEQ
 function ASSIGNMENTSLASHEQ:eval()
@@ -56,6 +55,20 @@ local ASSIGNMENTFLEXEQ = Parser.expressions.ASSIGNMENTFLEXEQ
 function ASSIGNMENTFLEXEQ:eval()
 	local a = tostring(self.left)
 	return a .. " = " .. a .. " ^ " .. tostring(self.right)
+end
+
+Parser.expressions.ASSIGNMENTBAREQ = class("Ample.expressions.ASSIGNMENTBAREQ", ASSIGNMENTPLUSEQ)
+local ASSIGNMENTBAREQ = Parser.expressions.ASSIGNMENTBAREQ
+function ASSIGNMENTBAREQ:eval()
+	local a = tostring(self.left)
+	return a .. " = " .. tostring(self.right) .. " or " .. a
+end
+
+Parser.expressions.ASSIGNMENTAMPEQ = class("Ample.expressions.ASSIGNMENTAMPEQ", ASSIGNMENTPLUSEQ)
+local ASSIGNMENTAMPEQ = Parser.expressions.ASSIGNMENTAMPEQ
+function ASSIGNMENTAMPEQ:eval()
+	local a = tostring(self.left)
+	return a .. " = " .. a .. " or " .. tostring(self.right)
 end
 
 Parser.expressions.PATH = class("Ample.expressions.PATH", Parser.baseExpression)

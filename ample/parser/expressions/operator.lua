@@ -250,3 +250,14 @@ end
 function AWAIT:eval()
 	return tostring(self.right) .. ":await()"
 end
+
+Parser.expressions.YIELD = class("Ample.expressions.YIELD", Parser.baseExpression)
+local YIELD = Parser.expressions.YIELD
+function YIELD:initialize()
+	Parser.asynced = true
+end
+
+function YIELD:eval()
+	return "Task.yield()"
+end
+
