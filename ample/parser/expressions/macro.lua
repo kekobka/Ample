@@ -396,6 +396,16 @@ Parser.ATTRIBUTES.c = function(data, ATTRIBUTE, parser)
 	end
 end
 
+Parser.meta_methods = {}
+Parser.ATTRIBUTES.meta = function(data, ATTRIBUTE, parser)
+	local block = parser:expression()
+	local meta_name = tostring(data):sub(2, -2)
+	Parser.meta_methods[meta_name] = block
+	function ATTRIBUTE:eval()
+		return ""
+	end
+end
+
 Parser.ATTRIBUTES.Compile = function(data, ATTRIBUTE, parser)
 
 	local expr = parser:expression()

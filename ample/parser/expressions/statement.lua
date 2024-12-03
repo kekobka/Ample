@@ -168,29 +168,45 @@ function TRAIT:initialize(parser, name)
 	end
 
 	parser:consume(TOKENTYPES.LBR)
-
+	Parser.meta_methods = {}
 	while not parser:match(TOKENTYPES.RBR) and not parser:match(TOKENTYPES.EOF) do
 		table.insert(self.data, parser:expression())
 	end
-
+	self.meta_methods = Parser.meta_methods
+	Parser.meta_methods = {}
 end
 
 function TRAIT:isNeedReturn()
 	return false
 end
+function TRAIT:concatMeta()
+	if table.count(self.meta_methods) == 0 then
+		return ""
+	end
+	local tbl = {}
+	for name, block in pairs(self.meta_methods) do
+		local str = tostring(block.right.right)
+		if str ~= "" then
+			tbl[#tbl + 1] = "['" .. name .. "']" .. "=" .. str .. ""
+		end
+	end
+	return table.concat(tbl, ",")
+end
 
 function TRAIT:eval()
+	local meta_methods = self:concatMeta()
+
 	if self.extended then
 		return "do " .. self.name .. "={};local _parent_0= " .. self.extender .. " local _base_0={" .. self:concat() ..
 						       "};_base_0.__index = _base_0;setmetatable(_base_0, _parent_0.__base);local _class_0 = setmetatable({new = _base_0.new or function() end,__base = _base_0,__name = '" ..
 						       self.name ..
-						       "', __parent = _parent_0}, {__index = function(cls, name) local val = rawget(_base_0, name) if val == nil then local parent = rawget(cls, '__parent') if parent then return parent[name] end else return val end end,__call = function(cls, ...)local _self_0 = setmetatable({}, _base_0) cls.new(_self_0, ...) return _self_0 end});_base_0.__class=_class_0;" ..
-						       self.name .. "=_class_0 end"
+						       "', __parent = _parent_0}, {__index = function(cls, name) local val = rawget(_base_0, name) if val == nil then local parent = rawget(cls, '__parent') if parent then return parent[name] end else return val end end,__call = function(cls, ...)local _self_0 = setmetatable({}, _base_0) cls.new(_self_0, ...) return _self_0 end," ..
+						       meta_methods .. "});_base_0.__class=_class_0;" .. self.name .. "=_class_0 end"
 	end
 	return "do " .. self.name .. "={};local _base_0={" .. self:concat() ..
 					       "};_base_0.__index = _base_0;local _class_0 = setmetatable({new = _base_0.new or function() end,__base = _base_0,__name = '" .. self.name ..
-					       "'}, {__index = _base_0,__call = function(cls, ...)local _self_0 = setmetatable({}, _base_0) cls.new(_self_0, ...) return _self_0 end});_base_0.__class=_class_0;" ..
-					       self.name .. "=_class_0 end"
+					       "'}, {__index = _base_0,__call = function(cls, ...)local _self_0 = setmetatable({}, _base_0) cls.new(_self_0, ...) return _self_0 end," ..
+					       meta_methods .. "});_base_0.__class=_class_0;" .. self.name .. "=_class_0 end"
 end
 
 Parser.expressions.FUNCTION = class("Ample.expressions.FUNCTION", BLOCK)
