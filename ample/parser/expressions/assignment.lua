@@ -47,7 +47,7 @@ Parser.expressions.ASSIGNMENTSTAREQ = class("Ample.expressions.ASSIGNMENTSTAREQ"
 local ASSIGNMENTSTAREQ = Parser.expressions.ASSIGNMENTSTAREQ
 function ASSIGNMENTSTAREQ:eval()
 	local a = tostring(self.left)
-	return a .. " = " .. a .. " / " .. tostring(self.right)
+	return a .. " = " .. a .. " * " .. tostring(self.right)
 end
 
 Parser.expressions.ASSIGNMENTFLEXEQ = class("Ample.expressions.ASSIGNMENTFLEXEQ", ASSIGNMENTPLUSEQ)
